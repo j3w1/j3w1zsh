@@ -59,6 +59,197 @@ jq -e --arg v1 "$v1" --arg v2 "$v2" '.status == "ok" and .data.dry_run == true a
 [[ $(git -C "$dry_checkout" rev-parse HEAD) == "$head_before" ]]
 [[ ! -e $dry_home/.local/state/j3w1zsh ]]
 
+# A real disposable fetch leaves non-writable pack/index/reverse-index objects, yet JSON/non-TTY
+# and human/TTY dry-runs complete without prompting, mutating local refs, or changing local state.
+command -v script >/dev/null
+command -v timeout >/dev/null
+real_git="$(command -v git)"
+packed_seed="$test_root/packed-seed"
+packed_remote="$test_root/packed.git"
+packed_checkout="$test_root/packed-checkout"
+git clone -q "$seed" "$packed_seed"
+git -C "$packed_seed" config user.name 'Update Pack Tests'
+git -C "$packed_seed" config user.email 'tests@example.invalid'
+git clone -q --bare "$packed_seed" "$packed_remote"
+git clone -q "$packed_remote" "$packed_checkout"
+mkdir -p "$packed_seed/pack-payload"
+for index in $(seq 1 8); do
+  dd if=/dev/urandom of="$packed_seed/pack-payload/$index.bin" bs=131072 count=1 status=none
+done
+git -C "$packed_seed" add pack-payload
+git -C "$packed_seed" commit -q -m 'fixture: force fetched pack data'
+packed_v3="$(git -C "$packed_seed" rev-parse HEAD)"
+git -C "$packed_seed" push -q "$packed_remote" main
+packed_local="$(git -C "$packed_checkout" rev-parse HEAD)"
+[[ $packed_local != "$packed_v3" ]]
+
+git_wrapper_dir="$test_root/git-wrapper"
+pack_evidence="$test_root/non-writable-pack-evidence.tsv"
+mkdir -p "$git_wrapper_dir"
+cat >"$git_wrapper_dir/git" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+"$J3W1ZSH_TEST_REAL_GIT" "$@"
+status=$?
+((status == 0)) || exit "$status"
+
+is_fetch=0
+for argument in "$@"; do
+  [[ $argument != fetch ]] || is_fetch=1
+done
+if ((is_fetch == 1)) && [[ ${1:-} == -C ]]; then
+  case "${2:-}" in
+  "$TMPDIR"/j3w1zsh-update-relation.*)
+    pack_dir="$2/.git/objects/pack"
+    for extension in pack idx rev; do
+      object="$(find "$pack_dir" -maxdepth 1 -type f -name "*.$extension" -print -quit)"
+      [[ -n $object ]] || {
+        printf 'Expected fetched .%s object was not created in %s.\n' "$extension" "$pack_dir" >&2
+        exit 97
+      }
+    done
+    find "$pack_dir" -maxdepth 1 -type f \( -name '*.pack' -o -name '*.idx' -o -name '*.rev' \) -exec chmod a-w -- {} +
+    for extension in pack idx rev; do
+      while IFS= read -r object; do
+        printf '%s\t%s\n' "$extension" "$(stat -c %A -- "$object")" >>"$J3W1ZSH_TEST_PACK_EVIDENCE"
+      done < <(find "$pack_dir" -maxdepth 1 -type f -name "*.$extension" -print)
+    done
+    ;;
+  esac
+fi
+EOF
+chmod +x "$git_wrapper_dir/git"
+
+probe_home="$test_root/probe-home"
+probe_tmp="$test_root/probe-tmp"
+mkdir -p \
+  "$probe_home/.local/state/j3w1zsh/phases" \
+  "$probe_home/.local/state/j3w1zsh/packages/repairs" \
+  "$probe_home/.local/state/j3w1zsh/migrations/recovery-one" \
+  "$probe_home/.local/state/j3w1zsh/migrations/recovery-two" \
+  "$probe_home/.local/state/j3w1zsh/manual" \
+  "$probe_tmp"
+printf '{"phase":"historical-false-20"}\n' >"$probe_home/.local/state/j3w1zsh/phases/20-packages.json"
+printf '{"packages":["pnpm","stylua"]}\n' >"$probe_home/.local/state/j3w1zsh/packages/provenance.json"
+printf 'unresolved corepack checkpoint\n' >"$probe_home/.local/state/j3w1zsh/manual/pnpm-corepack"
+printf 'preserve recovery one\n' >"$probe_home/.local/state/j3w1zsh/migrations/recovery-one/journal"
+printf 'preserve recovery two\n' >"$probe_home/.local/state/j3w1zsh/migrations/recovery-two/journal"
+
+snapshot_tree() {
+  local root="$1"
+  {
+    find "$root" -mindepth 1 -printf '%P\t%y\t%m\t%s\t%l\n' | LC_ALL=C sort
+    find "$root" -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum
+  } | sha256sum | awk '{print $1}'
+}
+
+probe_state_before="$(snapshot_tree "$probe_home")"
+probe_refs_before="$(git -C "$packed_checkout" show-ref)"
+probe_config_before="$(sha256sum "$packed_checkout/.git/config" | awk '{print $1}')"
+probe_head_before="$(git -C "$packed_checkout" rev-parse HEAD)"
+probe_status_before="$(git -C "$packed_checkout" status --porcelain=v1 --untracked-files=all)"
+probe_environment=(
+  HOME="$probe_home"
+  XDG_STATE_HOME="$probe_home/.local/state"
+  XDG_CONFIG_HOME="$probe_home/.config"
+  XDG_CACHE_HOME="$probe_home/.cache"
+  TMPDIR="$probe_tmp"
+  PATH="$git_wrapper_dir:$PATH"
+  J3W1ZSH_TEST_MODE=1
+  J3W1ZSH_TEST_PLATFORM=wsl
+  J3W1ZSH_TEST_CANONICAL_URL="$packed_remote"
+  J3W1ZSH_TEST_OLD_CANONICAL_URL="$test_root/former.git"
+  J3W1ZSH_TEST_REAL_GIT="$real_git"
+  J3W1ZSH_TEST_PACK_EVIDENCE="$pack_evidence"
+  GIT_CONFIG_COUNT=2
+  GIT_CONFIG_KEY_0=fetch.unpackLimit
+  GIT_CONFIG_VALUE_0=1
+  GIT_CONFIG_KEY_1=pack.writeReverseIndex
+  GIT_CONFIG_VALUE_1=true
+)
+
+probe_json_file="$test_root/probe-nontty.json"
+probe_nontty_stderr="$test_root/probe-nontty.stderr"
+timeout 20 env "${probe_environment[@]}" "$packed_checkout/bin/j3w1zsh" update --dry-run --json \
+  </dev/null >"$probe_json_file" 2>"$probe_nontty_stderr"
+jq -e --arg local "$packed_local" --arg remote "$packed_v3" '
+  .status == "ok" and .data.dry_run == true and .data.local_refs_changed == false and
+  .data.tracking_relation.local_oid == $local and .data.tracking_relation.remote_oid == $remote and
+  .data.tracking_relation.ahead == 0 and .data.tracking_relation.behind == 1 and
+  .data.tracking_relation.diverged == false
+' "$probe_json_file" >/dev/null
+if rg -i 'remove write-protected|\[[yn]/[yn]\]|confirmation' "$probe_json_file" "$probe_nontty_stderr"; then
+  printf 'Non-TTY update dry-run emitted an interactive cleanup prompt.\n' >&2
+  exit 1
+fi
+[[ -z $(find "$probe_tmp" -mindepth 1 -maxdepth 1 -type d -name 'j3w1zsh-update-relation.*' -print -quit) ]]
+
+probe_tty_transcript="$test_root/probe-tty.transcript"
+probe_tty_stdout="$test_root/probe-tty.stdout"
+probe_tty_stderr="$test_root/probe-tty.stderr"
+probe_tty_command=(env "${probe_environment[@]}" "$packed_checkout/bin/j3w1zsh" update --dry-run)
+printf -v probe_tty_shell '%q ' "${probe_tty_command[@]}"
+timeout 20 script -qefc "$probe_tty_shell" "$probe_tty_transcript" </dev/null >"$probe_tty_stdout" 2>"$probe_tty_stderr"
+rg -q 'Update preview complete' "$probe_tty_transcript" "$probe_tty_stdout"
+if rg -i 'remove write-protected|\[[yn]/[yn]\]|confirmation' "$probe_tty_transcript" "$probe_tty_stdout" "$probe_tty_stderr"; then
+  printf 'TTY update dry-run emitted an interactive cleanup prompt.\n' >&2
+  exit 1
+fi
+[[ -z $(find "$probe_tmp" -mindepth 1 -maxdepth 1 -type d -name 'j3w1zsh-update-relation.*' -print -quit) ]]
+
+for extension in pack idx rev; do
+  awk -F '\t' -v extension="$extension" '
+    $1 == extension { seen=1; if ($2 ~ /w/) bad=1 }
+    END { exit !(seen == 1 && bad != 1) }
+  ' "$pack_evidence"
+done
+[[ $(git -C "$packed_checkout" rev-parse HEAD) == "$probe_head_before" ]]
+[[ $(git -C "$packed_checkout" show-ref) == "$probe_refs_before" ]]
+[[ $(sha256sum "$packed_checkout/.git/config" | awk '{print $1}') == "$probe_config_before" ]]
+[[ $(git -C "$packed_checkout" status --porcelain=v1 --untracked-files=all) == "$probe_status_before" ]]
+[[ $(snapshot_tree "$probe_home") == "$probe_state_before" ]]
+[[ $(find "$probe_home/.local/state/j3w1zsh/migrations" -mindepth 1 -maxdepth 1 -type d | wc -l) == 2 ]]
+
+# A fork with a canonical upstream uses the same guarded comparison path without changing origin,
+# upstream, refs, state, or the deliberately divergent fork commit.
+fork_probe_work="$test_root/fork-probe-work"
+fork_probe_remote="$test_root/fork-probe.git"
+fork_probe_checkout="$test_root/fork-probe-checkout"
+git clone -q "$packed_checkout" "$fork_probe_work"
+git -C "$fork_probe_work" config user.name 'Update Fork Probe'
+git -C "$fork_probe_work" config user.email 'tests@example.invalid'
+printf 'fork probe\n' >"$fork_probe_work/fork-probe.txt"
+git -C "$fork_probe_work" add fork-probe.txt
+git -C "$fork_probe_work" commit -q -m 'fixture: fork probe commit'
+git clone -q --bare "$fork_probe_work" "$fork_probe_remote"
+git clone -q "$fork_probe_remote" "$fork_probe_checkout"
+git -C "$fork_probe_checkout" remote add upstream "$packed_remote"
+fork_probe_head="$(git -C "$fork_probe_checkout" rev-parse HEAD)"
+fork_probe_origin="$(git -C "$fork_probe_checkout" remote get-url origin)"
+fork_probe_refs="$(git -C "$fork_probe_checkout" show-ref)"
+fork_probe_home="$test_root/fork-probe-home"
+mkdir -p "$fork_probe_home"
+fork_probe_json="$test_root/fork-probe.json"
+timeout 20 env \
+  HOME="$fork_probe_home" XDG_STATE_HOME="$fork_probe_home/.local/state" XDG_CONFIG_HOME="$fork_probe_home/.config" XDG_CACHE_HOME="$fork_probe_home/.cache" \
+  TMPDIR="$probe_tmp" PATH="$git_wrapper_dir:$PATH" J3W1ZSH_TEST_MODE=1 J3W1ZSH_TEST_PLATFORM=wsl \
+  J3W1ZSH_TEST_CANONICAL_URL="$packed_remote" J3W1ZSH_TEST_OLD_CANONICAL_URL="$test_root/former.git" \
+  J3W1ZSH_TEST_REAL_GIT="$real_git" J3W1ZSH_TEST_PACK_EVIDENCE="$pack_evidence" \
+  GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=fetch.unpackLimit GIT_CONFIG_VALUE_0=1 GIT_CONFIG_KEY_1=pack.writeReverseIndex GIT_CONFIG_VALUE_1=true \
+  "$fork_probe_checkout/bin/j3w1zsh" update --dry-run --json </dev/null >"$fork_probe_json"
+jq -e '
+  .status == "ok" and .data.local_refs_changed == false and .data.repository.identity == "fork" and
+  .data.tracking_relation.ahead == 0 and .data.tracking_relation.behind == 0 and
+  .data.canonical_relation.ahead == 1 and .data.canonical_relation.behind == 1 and
+  .data.canonical_relation.diverged == true
+' "$fork_probe_json" >/dev/null
+[[ $(git -C "$fork_probe_checkout" rev-parse HEAD) == "$fork_probe_head" ]]
+[[ $(git -C "$fork_probe_checkout" remote get-url origin) == "$fork_probe_origin" ]]
+[[ $(git -C "$fork_probe_checkout" remote get-url upstream) == "$packed_remote" ]]
+[[ $(git -C "$fork_probe_checkout" show-ref) == "$fork_probe_refs" ]]
+[[ -z $(find "$probe_tmp" -mindepth 1 -maxdepth 1 -type d -name 'j3w1zsh-update-relation.*' -print -quit) ]]
+[[ ! -e $fork_probe_home/.local/state/j3w1zsh ]]
+
 # Real execution fast-forwards only, relaunches the fresh executable, and reconciles base state.
 fast_checkout="$(create_checkout fast-checkout)"
 fast_home="$test_root/fast-home"
@@ -183,11 +374,17 @@ done
 deep_tip="$(git -C "$deep_seed" rev-parse HEAD)"
 git clone -q --bare "$deep_seed" "$deep_remote"
 deep_relation="$({
+  trap - EXIT
   J3W1ZSH_REPO_ROOT="$deep_local"
   J3W1ZSH_TEST_MODE=1
+  J3W1ZSH_STATE_DIR="$test_root/deep-state"
+  J3W1ZSH_CONFIG_DIR="$test_root/deep-config"
+  J3W1ZSH_EXIT_FAILURE=1
+  # shellcheck source=scripts/lib/core/filesystem.sh
+  source "$repo_root/scripts/lib/core/filesystem.sh"
   source "$repo_root/scripts/lib/core/git.sh"
   j3w1zsh_git_relation "$deep_remote" refs/heads/main "$deep_tip"
 })"
 jq -e '.ahead == 0 and .behind == 120 and .diverged == false' <<<"$deep_relation" >/dev/null
 
-printf 'Update dry-run, selection, full-history relation, fast-forward, relaunch, generated repair, protected state, fork, and redirect tests passed.\n'
+printf 'Update prompt-free guarded dry-run, TTY/non-TTY, fork/canonical relation, selection, full-history, fast-forward, relaunch, generated repair, protected state, and redirect tests passed.\n'

@@ -14,6 +14,8 @@ Detection occurs before mutation. Production has no platform-forcing escape hatc
 
 Managed destinations remain under the intended home or one exact platform adapter. Conflicts are preserved. Updates stop on authored/staged/untracked/deleted/renamed/ahead/divergent state and fast-forward only. Migration captures protected bytes and unique refs before stopping.
 
+Recursive forced cleanup is confined to the normal-runtime and standalone-migration guarded ephemeral helpers. Both require exact registration, a resolved allowed parent, an exact basename prefix shape, a non-symlink directory, and a regular ownership marker before removal. The runtime marker is process-owned. Persistent recovery generations, generated product paths, user destinations, workspaces, config/state/cache roots, and repository checkouts cannot be registered through this interface.
+
 Package reconciliation fails closed: each aggregate phase runs once, a child failure stops all later phases, and provenance requires positive exact-manager verification. Known Corepack/Pacman `pnpm` shims become a manual checkpoint; ambiguous path ownership is protected. The bounded provenance repair revalidates exact named records and manager state, preserves evidence, and cannot install, remove, or alter packages.
 
 ## Workspace execution

@@ -33,6 +33,9 @@ before installation on a sensitive machine. Begin with `./install.sh --dry-run`.
   divergent work.
 - Migration preserves recoverable bytes and unique Git refs before stopping; cutover happens
   only after new verification and rollback remains rerunnable.
+- Automatic recursive cleanup is limited to exact script-created ephemeral directories that are
+  registered by the current process, parent- and prefix-validated, non-symlinked, and protected
+  by a regular ownership marker. Recovery generations and user-owned paths are never eligible.
 - `plan` and `--dry-run` may inspect selected state and remote refs but create no durable state,
   trust, cache, host configuration, package operation, or Git ref.
 

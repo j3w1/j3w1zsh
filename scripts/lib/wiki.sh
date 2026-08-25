@@ -91,11 +91,15 @@ j3w1zsh_wiki_materialize_commit() {
     [[ $current == "$commit" && -z $(git -C "$destination" status --short) ]] || j3w1zsh_die "Existing Wiki materialization is dirty or at a different commit: $destination"
     return 0
   fi
+  local staging_kind
+  staging_kind="wiki-checkout-$(basename -- "$(dirname -- "$destination")")"
   mkdir -p "$(dirname -- "$destination")"
-  staging="$(mktemp -d "$(dirname -- "$destination")/.wiki-checkout.XXXXXX")"
-  git clone -q --no-checkout "$cache" "$staging"
-  git -C "$staging" checkout -q --detach "$commit"
-  mv -- "$staging" "$destination"
+  j3w1zsh_create_ephemeral_dir staging "$staging_kind"
+  git -C "$staging" init -q
+  git -C "$staging" remote add origin "$cache"
+  git -C "$staging" fetch -q origin "$commit"
+  git -C "$staging" checkout -q --detach FETCH_HEAD
+  j3w1zsh_promote_ephemeral_dir "$staging" "$destination"
 }
 
 j3w1zsh_wiki_sync_command() {
@@ -137,11 +141,11 @@ j3w1zsh_wiki_status_data() {
   fi
   if [[ $commit =~ ^[0-9a-f]{40}$ ]]; then
     local temporary
-    temporary="$(mktemp -d "${TMPDIR:-/tmp}/j3w1zsh-wiki-status.XXXXXX")"
+    j3w1zsh_create_ephemeral_dir temporary wiki-status
     git -C "$temporary" init -q
     git -C "$temporary" remote add origin "$url"
     if j3w1zsh_wiki_git -C "$temporary" fetch -q --depth=1 origin "$commit"; then compatible=true; fi
-    rm -r -- "$temporary"
+    j3w1zsh_cleanup_ephemeral_dir "$temporary" || j3w1zsh_die "Failed to clean the guarded Wiki status directory."
   fi
   jq -cn --arg pinned_head "$commit" --arg canonical_head "$canonical_head" --arg local_head "$local_head" \
     --argjson dirty "$dirty" --argjson compatible "$compatible" \
@@ -178,14 +182,14 @@ j3w1zsh_wiki_context_command() {
     j3w1zsh_note "Verified pinned context already materialized: $destination"
     return 0
   fi
-  staging="$(mktemp -d "${TMPDIR:-/tmp}/j3w1zsh-wiki-context.XXXXXX")"
+  j3w1zsh_create_ephemeral_dir staging wiki-context
   while IFS= read -r page; do
     file="$(j3w1zsh_wiki_page_file "$page")"
     git --git-dir="$cache" show "$commit:$file" >"$staging/$file" || j3w1zsh_die "Pinned Wiki page is missing at $commit: $file"
   done < <(jq -r --arg topic "$topic" '.routes[$topic].wiki_pages[]' "$context")
   jq -c --arg topic "$topic" '.routes[$topic]' "$context" >"$staging/route.json"
   mkdir -p "$(dirname -- "$destination")"
-  mv -- "$staging" "$destination"
+  j3w1zsh_promote_ephemeral_dir "$staging" "$destination"
   j3w1zsh_note "Materialized routed context: $destination"
 }
 

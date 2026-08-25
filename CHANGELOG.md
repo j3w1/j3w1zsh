@@ -48,6 +48,10 @@ All notable changes to `j3w1zsh` are documented here.
 - Major-migration resolver and workspace-comparison directories now use exact script-owned
   registration, ownership markers, and non-interactive cleanup, including write-protected Git
   objects, without making permanent recovery generations eligible for automatic removal.
+- Normal-runtime comparison and staging directories now use one process-registered,
+  parent-scoped, prefix-validated, marker-owned cleanup primitive. Update/fork dry-runs remove
+  non-writable fetched Git objects without a TTY prompt while recovery and user paths remain
+  ineligible for forced recursive cleanup.
 - Exact migration acquisition now creates a full-history `main` checkout with a resolvable
   `origin/main`, even when canonical main advances beyond the pinned migration target. A guarded
   tracking-repair mode fixes the affected shallow `[gone]` state without changing HEAD, authored

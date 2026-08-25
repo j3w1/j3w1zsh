@@ -21,6 +21,12 @@ An explicitly approved false package-provenance repair stores the exact removed 
 
 Each manifest/platform generation owns managed-file backups, optional SQLite pre-setup bytes, trust, and phase markers. A changed manifest creates a new generation. Failed lifecycle actions leave later markers absent for explicit resume.
 
+## Ephemeral cleanup boundary
+
+Normal runtime staging and comparison directories are automatically removable only when the current process registered the exact path, the resolved parent and basename prefix match a bounded kind, the directory is not a symlink, and its regular ownership marker matches that process and kind. Forced recursive removal exists only behind that guard. Generated theme rollover and backed-up workspace destination replacement remain separate non-forced operations because they are persistent product or user paths, not ephemeral directories.
+
+The standalone migration bootstrap uses the same registered, parent-scoped, prefix-validated, marker-owned model in its self-contained helper. Neither helper can register or remove migration recovery roots, update recovery, package-repair evidence, backups, phase state, config, workspaces, or repository checkouts as ephemeral data.
+
 ## Major migration recovery
 
 Major migration creates a permanent mode-0700 recovery root with inventory, patches, untracked bytes, unique-ref bundle where needed, pre-cutover paths, relocated legacy state, journal, and rollback evidence. Recovery data is never pruned automatically, and rollback never deletes the new checkout.

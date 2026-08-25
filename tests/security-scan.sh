@@ -19,7 +19,7 @@ patterns=(
 failure=0
 pattern=""
 for pattern in "${patterns[@]}"; do
-  if rg --no-ignore --hidden --glob '!.git/**' --glob '!tests/security-scan.sh' -n -i -e "$pattern" .; then
+  if rg --no-ignore --hidden --glob '!.git' --glob '!.git/**' --glob '!tests/security-scan.sh' -n -i -e "$pattern" .; then
     printf 'Security scan matched forbidden pattern: %s\n' "$pattern" >&2
     failure=1
   fi

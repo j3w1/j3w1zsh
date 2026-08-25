@@ -1,0 +1,21 @@
+path	expected_count	classification	reason
+scripts/legacy/migrate-to-j3w1zsh.sh	1	ephemeral-script-owned	Standalone migration helper removes only its registered parent-scoped prefix-validated marker-owned directory.
+scripts/lib/core/filesystem.sh	1	ephemeral-script-owned	Runtime helper removes only its registered parent-scoped prefix-validated process-marker-owned directory.
+scripts/lib/themes.sh	2	persistent-product-derived	Theme rollover removes only the exact validated generated theme.previous directory after replacement.
+scripts/lib/workspace-v2.sh	1	arbitrary-user-owned	Workspace apply removes only an exact validated home-file destination after preserving its prior bytes.
+tests/test-cli-output.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
+tests/test-foundation.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
+tests/test-legacy-migration.sh	2	test-fixture	Fixture cleanup removes only paths created beneath this test process's mktemp root.
+tests/test-linker.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
+tests/test-package-execution.sh	2	test-fixture	Fixture reset and EXIT cleanup remove only paths created beneath this test process's mktemp root.
+tests/test-packages-themes.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
+tests/test-platform-contract.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
+tests/test-remote.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
+tests/test-temp-cleanup.sh	1	test-fixture	EXIT trap force-removes only this test process's mktemp root, including deliberately non-writable objects.
+tests/test-terminal-contract.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
+tests/test-tma.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
+tests/test-update-v1.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root, including deliberately non-writable Git objects.
+tests/test-wiki.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
+tests/test-workspace-v2.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
+tests/test-zsh-prompt.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
+tests/validate-wiki-lock.sh	1	test-fixture	EXIT trap removes only the exact Wiki validation mktemp root.
