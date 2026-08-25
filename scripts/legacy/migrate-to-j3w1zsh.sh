@@ -6,6 +6,7 @@ readonly MIGRATION_EXIT_USAGE=2
 readonly MIGRATION_EXIT_CHECKPOINT=20
 readonly MIGRATION_EXIT_PROTECTED=21
 readonly MIGRATION_KNOWN_GENERATED_PATH='dotfiles/nvim/.config/nvim/lazy-lock.json'
+declare -A MIGRATION_EPHEMERAL_KINDS=()
 
 migration_usage() {
   cat <<'EOF'
@@ -32,6 +33,98 @@ migration_note() {
 migration_log() {
   printf '==> %s\n' "$*"
 }
+
+migration_ephemeral_parent() {
+  case "$1" in
+  resolve)
+    printf '%s\n' "${TMPDIR:-/tmp}"
+    ;;
+  workspace-compare)
+    [[ -n ${MIGRATION_RECOVERY_ROOT:-} ]] || return 1
+    printf '%s\n' "$MIGRATION_RECOVERY_ROOT"
+    ;;
+  *)
+    return 1
+    ;;
+  esac
+}
+
+migration_ephemeral_basename_allowed() {
+  local kind="$1" name="$2"
+  case "$kind:$name" in
+  resolve:j3w1zsh-migration-resolve.?????? | workspace-compare:.workspace-compare.??????) return 0 ;;
+  *) return 1 ;;
+  esac
+}
+
+migration_create_ephemeral_dir() {
+  local output_name="$1" kind="$2" parent resolved_parent prefix created resolved_created marker
+  parent="$(migration_ephemeral_parent "$kind")" || migration_die "Unknown ephemeral directory kind: $kind"
+  [[ -d $parent ]] || migration_die "Ephemeral directory parent is not available: $parent"
+  resolved_parent="$(readlink -m -- "$parent")"
+  if [[ $kind == workspace-compare ]]; then
+    migration_validate_home_path "$resolved_parent"
+  fi
+  case "$kind" in
+  resolve) prefix='j3w1zsh-migration-resolve' ;;
+  workspace-compare) prefix='.workspace-compare' ;;
+  esac
+  created="$(mktemp -d -- "$resolved_parent/$prefix.XXXXXX")"
+  resolved_created="$(readlink -m -- "$created")"
+  [[ -d $resolved_created && ! -L $resolved_created ]] || migration_die "Ephemeral directory creation was not isolated: $created"
+  [[ $(dirname -- "$resolved_created") == "$resolved_parent" ]] || migration_die "Ephemeral directory escaped its guarded parent: $created"
+  migration_ephemeral_basename_allowed "$kind" "$(basename -- "$resolved_created")" ||
+    migration_die "Ephemeral directory has an unexpected name: $created"
+  marker="$resolved_created/.j3w1zsh-ephemeral"
+  (umask 077; printf 'j3w1zsh:%s\n' "$kind" >"$marker")
+  chmod 400 "$marker"
+  MIGRATION_EPHEMERAL_KINDS["$resolved_created"]="$kind"
+  printf -v "$output_name" '%s' "$resolved_created"
+}
+
+migration_cleanup_ephemeral_dir() {
+  local path="$1" kind parent resolved_parent resolved_path marker marker_value
+  if [[ ${MIGRATION_EPHEMERAL_KINDS[$path]+registered} != registered ]]; then
+    printf 'ERROR: Refusing to remove an unregistered ephemeral directory: %s\n' "$path" >&2
+    return 1
+  fi
+  kind="${MIGRATION_EPHEMERAL_KINDS[$path]}"
+  parent="$(migration_ephemeral_parent "$kind")" || return 1
+  resolved_parent="$(readlink -m -- "$parent")"
+  resolved_path="$(readlink -m -- "$path")"
+  if [[ $path != "$resolved_path" || ! -d $path || -L $path || $(dirname -- "$resolved_path") != "$resolved_parent" ]] ||
+    ! migration_ephemeral_basename_allowed "$kind" "$(basename -- "$resolved_path")"; then
+    printf 'ERROR: Refusing to remove an ephemeral directory outside its exact guarded shape: %s\n' "$path" >&2
+    return 1
+  fi
+  marker="$path/.j3w1zsh-ephemeral"
+  if [[ ! -f $marker || -L $marker ]]; then
+    printf 'ERROR: Refusing to remove an ephemeral directory without its regular ownership marker: %s\n' "$path" >&2
+    return 1
+  fi
+  IFS= read -r marker_value <"$marker" || return 1
+  if [[ $marker_value != "j3w1zsh:$kind" ]]; then
+    printf 'ERROR: Refusing to remove an ephemeral directory with an invalid ownership marker: %s\n' "$path" >&2
+    return 1
+  fi
+  rm -rf -- "$path"
+  [[ ! -e $path && ! -L $path ]] || return 1
+  unset 'MIGRATION_EPHEMERAL_KINDS[$path]'
+}
+
+migration_cleanup_ephemeral_dirs_on_exit() {
+  local status=$? path cleanup_failed=0
+  trap - EXIT
+  for path in "${!MIGRATION_EPHEMERAL_KINDS[@]}"; do
+    migration_cleanup_ephemeral_dir "$path" || cleanup_failed=1
+  done
+  if ((status == 0 && cleanup_failed != 0)); then
+    status=$MIGRATION_EXIT_FAILURE
+  fi
+  exit "$status"
+}
+
+trap migration_cleanup_ephemeral_dirs_on_exit EXIT
 
 migration_validate_home_path() {
   local path="$1" resolved_home resolved_path
@@ -259,15 +352,15 @@ migration_write_journal() {
 
 migration_resolve_dry_run() {
   local temporary resolved
-  temporary="$(mktemp -d "${TMPDIR:-/tmp}/j3w1zsh-migration-resolve.XXXXXX")"
+  migration_create_ephemeral_dir temporary resolve
   git -C "$temporary" init -q
   git -C "$temporary" remote add origin "$MIGRATION_REMOTE"
   if ! git -C "$temporary" fetch -q --depth=1 origin "$MIGRATION_TARGET_REF"; then
-    rm -r -- "$temporary"
+    migration_cleanup_ephemeral_dir "$temporary" || migration_die "Failed to clean the guarded dry-run resolver directory."
     migration_die "Target ref is not reachable: $MIGRATION_TARGET_REF"
   fi
   resolved="$(git -C "$temporary" rev-parse FETCH_HEAD)"
-  rm -r -- "$temporary"
+  migration_cleanup_ephemeral_dir "$temporary" || migration_die "Failed to clean the guarded dry-run resolver directory."
   [[ -n $resolved ]] || migration_die "Target ref is not reachable: $MIGRATION_TARGET_REF"
   [[ $resolved == "$MIGRATION_EXPECTED_COMMIT" ]] || migration_die "Target ref resolves to $resolved, not $MIGRATION_EXPECTED_COMMIT."
 }
@@ -366,23 +459,23 @@ migration_workspace_candidate() {
   if [[ -e $output || -L $output ]]; then
     [[ -f $output && ! -L $output ]] || migration_die "Interrupted workspace candidate is not a regular file."
     local comparison
-    comparison="$(mktemp -d "$MIGRATION_RECOVERY_ROOT/.workspace-compare.XXXXXX")"
+    migration_create_ephemeral_dir comparison workspace-compare
     "$MIGRATION_TARGET/bin/j3w1zsh" workspace migrate "$manifest" --output "$comparison/j3w1zsh.workspace.json" >/dev/null
     if ! cmp -s -- "$output" "$comparison/j3w1zsh.workspace.json"; then
-      rm -r -- "$comparison"
+      migration_cleanup_ephemeral_dir "$comparison" || migration_die "Failed to clean the guarded workspace comparison directory."
       migration_write_journal workspace checkpoint
       migration_die "Interrupted workspace candidate differs from a fresh exact conversion; owner review is required." "$MIGRATION_EXIT_CHECKPOINT"
     fi
     if [[ -e $output.migration-report.json ]]; then
       if ! cmp -s -- "$output.migration-report.json" "$comparison/j3w1zsh.workspace.json.migration-report.json"; then
-        rm -r -- "$comparison"
+        migration_cleanup_ephemeral_dir "$comparison" || migration_die "Failed to clean the guarded workspace comparison directory."
         migration_write_journal workspace checkpoint
         migration_die "Interrupted workspace migration report differs from a fresh exact conversion; owner review is required." "$MIGRATION_EXIT_CHECKPOINT"
       fi
     else
       mv -- "$comparison/j3w1zsh.workspace.json.migration-report.json" "$output.migration-report.json"
     fi
-    rm -r -- "$comparison"
+    migration_cleanup_ephemeral_dir "$comparison" || migration_die "Failed to clean the guarded workspace comparison directory."
     migration_write_journal workspace complete
     return 0
   fi

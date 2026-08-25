@@ -16,6 +16,8 @@ The migration discovers complete, partial, absent, generated-drift, authored-dir
 
 The preserved source checkout may still use the former repository URL or may already use the renamed canonical `j3w1/j3w1zsh` URL. Every unrelated origin is rejected before target or state mutation.
 
+Dry-run ref resolution and interrupted-workspace comparison use only script-created temporary directories with exact parent/name validation and an ownership marker. Cleanup is non-interactive even for write-protected Git objects. These ephemeral directories are distinct from permanent migration recovery generations, which are never removed automatically.
+
 Authored, staged, untracked, or unique-commit states stop with exit 21 before acquire or cutover. Exact allowlisted generated Neovim lock drift may continue only after its bytes and patch are preserved.
 
 Known settings translate to `J3W1ZSH_EDIT_ROOT`, `J3W1ZSH_GITHUB_KEY`, and generalized remote host/user/attach settings. Unknown settings stop at a manual review checkpoint and are never sourced.

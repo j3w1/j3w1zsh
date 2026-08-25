@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "j3w1/j3w1zsh",
-  "commit": "6ed64d6d6dd16ffd42b030c9fd290da410a7c20d",
+  "commit": "3e062e0555f9fede122a98672670a3bf32bbec03",
   "code_version": "1.0.0",
   "required_pages": [
     "Home",

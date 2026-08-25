@@ -7,6 +7,8 @@ trap 'rm -rf -- "$test_root"' EXIT
 migration="$repo_root/scripts/legacy/migrate-to-j3w1zsh.sh"
 fixture_bin="$test_root/bin"
 mkdir -p "$fixture_bin"
+[[ $(grep -Ec "^[[:space:]]*rm -rf -- \"\\\$path\"$" "$migration") == 1 ]]
+[[ $(grep -Ec '^[[:space:]]*rm -r[[:space:]]' "$migration") == 0 ]]
 for fixture_command in gh nvim tmux; do
   cat >"$fixture_bin/$fixture_command" <<'EOF'
 #!/usr/bin/env bash
@@ -100,12 +102,81 @@ run_termux_migration() {
     "$migration" "$@"
 }
 
+# Force fetched Git objects to be write-protected after a successful fetch, matching real Git
+# pack/object permissions while leaving all other fixture Git commands untouched.
+instrumented_bin="$test_root/instrumented-bin"
+mkdir -p "$instrumented_bin"
+cat >"$instrumented_bin/git" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+: "${J3W1ZSH_TEST_REAL_GIT:?}"
+set +e
+"$J3W1ZSH_TEST_REAL_GIT" "$@"
+result=$?
+set -e
+if ((result == 0)) && [[ ${J3W1ZSH_TEST_WRITE_PROTECT_FETCH:-0} == 1 && ${1:-} == -C && ${3:-} == fetch ]]; then
+  object_root="$2/.git/objects"
+  count=0
+  pack_seen=0
+  while IFS= read -r -d '' object; do
+    chmod a-w -- "$object"
+    ((count += 1))
+    [[ $object == *.pack ]] && pack_seen=1
+  done < <(find "$object_root" -type f -print0)
+  printf '%s %s\n' "$count" "$pack_seen" >>"$J3W1ZSH_TEST_WRITE_PROTECT_LOG"
+  ((count > 0 && pack_seen == 1))
+fi
+exit "$result"
+EOF
+chmod +x "$instrumented_bin/git"
+
 # Dry-run resolves the exact OID through a disposable temp Git repository and creates no state.
+# It must clean fetched mode-0444 pack/object files without prompting or reading confirmation,
+# both without a terminal and with a pseudo-terminal attached to stdin.
 dry_home="$test_root/dry-home"
 create_old_home "$dry_home"
-dry_output="$(run_migration "$dry_home" --target-ref "$new_oid" --expected-commit "$new_oid" --source "$dry_home/projects/bloody-writer" --dry-run)"
+dry_tmp="$test_root/dry-tmp"
+dry_protect_log="$test_root/dry-write-protected.log"
+dry_non_tty_output="$test_root/dry-non-tty.out"
+dry_tty_output="$test_root/dry-tty.out"
+mkdir -p "$dry_tmp"
+real_git="$(command -v git)"
+dry_command=(
+  env
+  "HOME=$dry_home"
+  "XDG_CONFIG_HOME=$dry_home/.config"
+  "XDG_STATE_HOME=$dry_home/.local/state"
+  "XDG_CACHE_HOME=$dry_home/.cache"
+  "TMPDIR=$dry_tmp"
+  J3W1ZSH_MIGRATION_TEST_MODE=1
+  J3W1ZSH_MIGRATION_TEST_PLATFORM=wsl
+  "J3W1ZSH_MIGRATION_REMOTE=$new_remote"
+  "J3W1ZSH_MIGRATION_TEST_FORMER_REMOTE=$old_remote"
+  "J3W1ZSH_TEST_REAL_GIT=$real_git"
+  J3W1ZSH_TEST_WRITE_PROTECT_FETCH=1
+  "J3W1ZSH_TEST_WRITE_PROTECT_LOG=$dry_protect_log"
+  "PATH=$instrumented_bin:$fixture_bin:$PATH"
+  "$migration"
+  --target-ref "$new_oid"
+  --expected-commit "$new_oid"
+  --source "$dry_home/projects/bloody-writer"
+  --dry-run
+)
+timeout 20s "${dry_command[@]}" </dev/null >"$dry_non_tty_output"
+command -v script >/dev/null || { printf 'The pseudo-terminal regression requires util-linux script.\n' >&2; exit 1; }
+printf -v dry_tty_command '%q ' "${dry_command[@]}"
+timeout 20s script -qefc "$dry_tty_command" "$dry_tty_output" </dev/null >/dev/null
+dry_output="$(<"$dry_non_tty_output")"
 grep -q 'classification: exact-known' <<<"$dry_output"
 grep -q 'no state, checkout, trust record, package, Git ref, or host configuration was changed' <<<"$dry_output"
+grep -q 'Dry run complete' "$dry_tty_output"
+if grep -q 'remove write-protected' "$dry_non_tty_output" "$dry_tty_output"; then
+  printf 'Dry-run cleanup prompted for write-protected Git objects.\n' >&2
+  exit 1
+fi
+awk 'NF != 2 || $1 < 1 || $2 != 1 { exit 1 } END { if (NR != 2) exit 1 }' "$dry_protect_log"
+[[ -z $(find "$dry_tmp" -mindepth 1 -maxdepth 1 -name 'j3w1zsh-migration-resolve.*' -print -quit) ]]
 [[ ! -e $dry_home/j3w1zsh ]]
 [[ ! -e $dry_home/.local/state/j3w1zsh ]]
 
@@ -184,6 +255,10 @@ jq -e '.schema_version == 2 and .workspace.review_state == "candidate" and (.tar
 resume_home="$test_root/resume-home"
 create_old_home "$resume_home"
 mkdir -p "$resume_home/.config/bloody-writer"
+mkdir -p "$resume_home/.local/state/bloody-writer/workspaces"
+resume_legacy_workspace="$resume_home/legacy-workspace.json"
+write_legacy_workspace "$resume_legacy_workspace"
+jq -n --arg manifest "$resume_legacy_workspace" '{manifest:$manifest}' >"$resume_home/.local/state/bloody-writer/workspaces/active.json"
 cat >"$resume_home/.config/bloody-writer/settings.zsh" <<'EOF'
 export BLOODY_WRITER_DOCUMENTS='/tmp/example-documents'
 export UNKNOWN_FORMER_SETTING='preserve but never source me'
@@ -197,10 +272,43 @@ resume_recovery="$(find "$resume_home/.local/state/j3w1zsh/migrations" -mindepth
 jq -e '.phase == "translate" and .status == "checkpoint"' "$resume_recovery/journal.json" >/dev/null
 grep -q UNKNOWN_FORMER_SETTING "$resume_recovery/unknown-settings.txt"
 [[ -d $resume_home/j3w1zsh/.git && -d $resume_home/projects/bloody-writer/.git ]]
+mkdir -p "$resume_recovery/workspace"
+env HOME="$resume_home" XDG_STATE_HOME="$resume_home/.local/state" J3W1ZSH_TEST_MODE=1 J3W1ZSH_TEST_PLATFORM=wsl \
+  "$resume_home/j3w1zsh/bin/j3w1zsh" workspace migrate "$resume_legacy_workspace" \
+  --output "$resume_recovery/workspace/j3w1zsh.workspace.json" >/dev/null
+
+# The interrupted-workspace comparison directory is the other script-created temporary directory.
+# Make its generated comparison files write-protected and prove guarded cleanup removes only it.
+workspace_instrumented_bin="$test_root/workspace-instrumented-bin"
+workspace_protect_log="$test_root/workspace-write-protected.log"
+mkdir -p "$workspace_instrumented_bin"
+cat >"$workspace_instrumented_bin/mv" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+: "${J3W1ZSH_TEST_REAL_MV:?}"
+set +e
+"$J3W1ZSH_TEST_REAL_MV" "$@"
+result=$?
+set -e
+destination=''
+for argument in "$@"; do
+  destination="$argument"
+done
+if ((result == 0)) && [[ $destination == */.workspace-compare.??????/* && -f $destination ]]; then
+  chmod a-w -- "$destination"
+  printf '%s\n' "$destination" >>"$J3W1ZSH_TEST_WRITE_PROTECT_LOG"
+fi
+exit "$result"
+EOF
+chmod +x "$workspace_instrumented_bin/mv"
 touch "$resume_recovery/translation-approved"
-run_migration "$resume_home" --resume >/dev/null
+J3W1ZSH_TEST_REAL_MV="$(command -v mv)" J3W1ZSH_TEST_WRITE_PROTECT_LOG="$workspace_protect_log" \
+  PATH="$workspace_instrumented_bin:$PATH" run_migration "$resume_home" --resume >/dev/null
 jq -e '.phase == "finalize" and .status == "complete"' "$resume_recovery/journal.json" >/dev/null
 [[ ! -e $resume_home/projects/bloody-writer ]]
+[[ $(wc -l <"$workspace_protect_log") == 2 ]]
+[[ -z $(find "$resume_recovery" -mindepth 1 -maxdepth 1 -name '.workspace-compare.*' -print -quit) ]]
 
 # Repeating the exact completed invocation is a no-op and creates no new recovery generation.
 recovery_count_before="$(find "$resume_home/.local/state/j3w1zsh/migrations" -mindepth 1 -maxdepth 1 -type d | wc -l)"
