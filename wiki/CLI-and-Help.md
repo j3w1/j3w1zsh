@@ -1,6 +1,6 @@
 # CLI and Help
 
-Use `j3w1zsh help`, `j3w1zsh help edit`, or `j3w1zsh help remote`. Global output options may appear before or after the command until `--`:
+Use `j3w1zsh help`, `j3w1zsh help edit`, `j3w1zsh help remote`, or `j3w1zsh help packages`. Global output options may appear before or after the command until `--`:
 
 ```text
 --json
@@ -18,6 +18,8 @@ Use `j3w1zsh help`, `j3w1zsh help edit`, or `j3w1zsh help remote`. Global output
 - Maintenance: `update`, `backup`, `restore`, `migrate`.
 - Daily use: `edit`, `attach`, `remote`.
 - Declarative layers: `packages`, `theme`, `workspace`, `wiki`.
+
+`packages repair-provenance` is an exceptional recovery command, not routine pruning. It requires an exact manager and one or more exact package names, supports a mutation-free dry-run, and accepts only ledger ownership claims that the named manager currently reports absent. Actual repair preserves local evidence, retains unrelated records, and invalidates phase `20-packages`.
 
 `edit [PATH]` runs `nvim -- PATH`. With no path it uses `J3W1ZSH_EDIT_ROOT`, defaulting to `$HOME/Documents`.
 

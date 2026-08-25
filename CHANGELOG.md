@@ -28,6 +28,15 @@ All notable changes to `j3w1zsh` are documented here.
 
 ### Changed
 
+- Base installation now validates every typed action and executes each selected aggregate phase
+  exactly once. Any phase failure stops before its marker and every later phase.
+- Package transactions now propagate Pacman, `pkg`, npm, and pip failures and require positive
+  manager verification of every named package before provenance is recorded. The exact
+  Corepack/Pacman `pnpm` shim collision pauses at a reviewable checkpoint without overwriting or
+  deleting either path; ambiguous collisions stop protected.
+- Added an explicit, dry-runnable `packages repair-provenance` recovery that removes only exact
+  manager-disproved ownership claims, preserves durable evidence and unrelated provenance, and
+  invalidates phase `20-packages` for verified reconciliation.
 - Canonical checkout, command, settings, state, cache, helper, Neovim namespace, theme, profile,
   schema, and active source identity now use `j3w1zsh`.
 - Default tmux session is `j3w1zsh`; `tma` remains the bounded multi-client picker and is exposed

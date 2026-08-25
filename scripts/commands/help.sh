@@ -20,7 +20,7 @@ Usage:
   j3w1zsh edit [PATH]
   j3w1zsh attach [SESSION]|--list|--new NAME|--kill NAME
   j3w1zsh remote setup-host|configure-client|attach|status
-  j3w1zsh packages plan|status|prune
+  j3w1zsh packages plan|status|prune|repair-provenance
   j3w1zsh theme list|show|current|apply
   j3w1zsh workspace scan|validate|plan|audit|apply|status|resume|migrate
   j3w1zsh wiki sync|status|context|publish
@@ -97,6 +97,20 @@ never recursively searches HOME or parent repositories.
 EOF
 }
 
+j3w1zsh_help_packages() {
+  cat <<'EOF'
+Usage:
+  j3w1zsh packages plan|status|prune [--dry-run] [--json]
+  j3w1zsh packages repair-provenance --manager MANAGER \
+    --package NAME [--package NAME ...] [--dry-run] [--yes] [--json]
+
+repair-provenance is a bounded recovery operation. It accepts only exact named
+ledger rows that claim j3w1zsh ownership while the exact package manager reports
+the package absent. It preserves evidence, leaves unrelated provenance intact,
+and invalidates phase 20. Begin with --dry-run.
+EOF
+}
+
 j3w1zsh_help_command() {
   local topic="${1:-}"
   case "$topic" in
@@ -105,7 +119,8 @@ j3w1zsh_help_command() {
   edit) j3w1zsh_help_edit ;;
   remote) j3w1zsh_help_remote ;;
   plan) j3w1zsh_help_plan ;;
-  help | status | doctor | platform | update | migrate | backup | restore | reset-phase | attach | packages | theme | workspace | wiki)
+  packages) j3w1zsh_help_packages ;;
+  help | status | doctor | platform | update | migrate | backup | restore | reset-phase | attach | theme | workspace | wiki)
     printf 'Run j3w1zsh help for the complete command summary.\n'
     ;;
   *) j3w1zsh_usage_error "Unknown help topic: $topic" ;;

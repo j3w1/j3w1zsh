@@ -68,11 +68,15 @@ j3w1zsh_action_selected() {
   return 0
 }
 
-j3w1zsh_execute_action() {
-  local action="$1"
-  local from_phase="$2"
-  local only_phase="$3"
-  local phase kind function
+j3w1zsh_validate_base_action() {
+  local action="$1" phase kind
+  jq -e --arg platform "$J3W1ZSH_PLATFORM" '
+    type == "object" and .platform == $platform and
+    (.id | type == "string" and length > 0) and (.phase | type == "string" and length > 0) and
+    (.kind | type == "string") and (.mutation | type == "boolean") and
+    (.requires_privilege | type == "boolean") and (.requires_confirmation | type == "boolean") and
+    (.verification_rule | type == "string" and length > 0)
+  ' <<<"$action" >/dev/null || j3w1zsh_die "Refusing an invalid base installation action."
   phase="$(jq -r .phase <<<"$action")"
   kind="$(jq -r .kind <<<"$action")"
   case "$kind" in
@@ -82,6 +86,26 @@ j3w1zsh_execute_action() {
     ;;
   *) j3w1zsh_die "Unrecognized typed action: $kind" ;;
   esac
+  local known_phase=false candidate
+  for candidate in "${J3W1ZSH_PHASES[@]}"; do
+    [[ $candidate != "$phase" ]] || known_phase=true
+  done
+  [[ $known_phase == true ]] || j3w1zsh_die "Base installation action names an unknown phase: $phase"
+}
+
+j3w1zsh_plan_selects_phase() {
+  local requested="$1" action
+  for action in "${J3W1ZSH_PLAN_ACTIONS[@]}"; do
+    [[ $(jq -r .phase <<<"$action") != "$requested" ]] || return 0
+  done
+  return 1
+}
+
+j3w1zsh_execute_phase() {
+  local phase="$1"
+  local from_phase="$2"
+  local only_phase="$3"
+  local function
   j3w1zsh_action_selected "$phase" "$from_phase" "$only_phase" || return 0
   if [[ $J3W1ZSH_FORCE != 1 ]] && j3w1zsh_phase_done "$phase"; then
     j3w1zsh_note "Skipping completed phase: $phase"
@@ -90,15 +114,12 @@ j3w1zsh_execute_action() {
   function="$(j3w1zsh_phase_function "$phase")"
   declare -F "$function" >/dev/null || j3w1zsh_die "Phase function is missing: $function"
   j3w1zsh_log "Phase $phase"
-  if "$function"; then
-    j3w1zsh_mark_phase "$phase"
-  else
-    local result=$?
-    if ((result == J3W1ZSH_EXIT_CHECKPOINT)); then
-      j3w1zsh_warn "Installation paused at a user-owned checkpoint. Complete the displayed action, then rerun."
-    fi
-    return "$result"
-  fi
+  # Keep the phase call as a simple command. Bash suppresses errexit throughout a
+  # function when that function is evaluated as an if/while/&&/|| condition.
+  # A failed phase must therefore terminate here before its marker or any later
+  # phase can run.
+  "$function"
+  j3w1zsh_mark_phase "$phase"
 }
 
 j3w1zsh_install_command() {
@@ -179,15 +200,19 @@ j3w1zsh_install_command() {
     return 0
   fi
 
+  local action phase
+  for action in "${J3W1ZSH_PLAN_ACTIONS[@]}"; do
+    [[ $(jq -r .phase <<<"$action") != workspace-* ]] || continue
+    j3w1zsh_validate_base_action "$action"
+  done
   j3w1zsh_ensure_dirs
   j3w1zsh_banner
   j3w1zsh_note "Detected: $(j3w1zsh_platform_label)"
   j3w1zsh_note "State: $J3W1ZSH_STATE_DIR"
   j3w1zsh_load_phases
-  local action
-  for action in "${J3W1ZSH_PLAN_ACTIONS[@]}"; do
-    [[ $(jq -r .phase <<<"$action") != workspace-* ]] || continue
-    j3w1zsh_execute_action "$action" "$from_phase" "$only_phase"
+  for phase in "${J3W1ZSH_PHASES[@]}"; do
+    j3w1zsh_plan_selects_phase "$phase" || continue
+    j3w1zsh_execute_phase "$phase" "$from_phase" "$only_phase"
   done
   if [[ -n $J3W1ZSH_SELECTED_WORKSPACE ]]; then
     if [[ $J3W1ZSH_PACKAGES_ONLY == 1 ]]; then
