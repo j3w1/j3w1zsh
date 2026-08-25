@@ -1,44 +1,44 @@
-# Bloody Writer — portable shell configuration for Windows WSL and Android Termux
+# j3w1zsh — portable shell configuration for native Arch, Arch WSL 2, and Termux
 export ZSH="$HOME/.oh-my-zsh"
 
-# Bloody Writer installs its user commands here on both WSL and Termux. Zsh's tied `path`
-# array keeps the directory first and removes duplicates when this file is reloaded.
 typeset -U path PATH
 path=("$HOME/.local/bin" $path)
 export PATH
 
-ZSH_THEME="agnoster"
-plugins=(
-  git
-  z
-  extract
-  colored-man-pages
-  command-not-found
-)
+ZSH_THEME=""
+plugins=(git z extract colored-man-pages command-not-found)
 (( $+commands[sudo] )) && plugins+=(sudo)
 
 HIST_STAMPS="yyyy-mm-dd"
 DISABLE_MAGIC_FUNCTIONS=true
 zstyle ':omz:update' mode disabled
-
-# Agnoster compares against Zsh's special USERNAME parameter. Android's generated Termux account
-# name is not guaranteed to match the inherited USER environment variable.
 DEFAULT_USER="${USERNAME:-${USER:-$(id -un)}}"
 
 source "$ZSH/oh-my-zsh.sh"
 
-# Bloody-red Agnoster directory segment: ANSI red background, white text.
-prompt_dir() {
-  prompt_segment 1 15 '%~'
-}
-
-settings_file="${XDG_CONFIG_HOME:-$HOME/.config}/bloody-writer/settings.zsh"
+settings_file="$HOME/.config/j3w1zsh/settings.zsh"
 [[ -r $settings_file ]] && source "$settings_file"
 unset settings_file
 
+theme_file="$HOME/.config/j3w1zsh/generated/theme/theme.zsh"
+[[ -r $theme_file ]] && source "$theme_file"
+unset theme_file
+
+: "${J3W1ZSH_COLOR_FOREGROUND:=#FFF1F1}"
+: "${J3W1ZSH_COLOR_BLOOD:=#B00020}"
+: "${J3W1ZSH_COLOR_BRIGHT_RED:=#FF334D}"
+autoload -Uz vcs_info
+setopt prompt_subst
+zstyle ':vcs_info:git:*' formats " %F{$J3W1ZSH_COLOR_BLOOD}git:%b%f"
+typeset -ga precmd_functions
+(( ${precmd_functions[(I)vcs_info]} )) || precmd_functions+=(vcs_info)
+typeset J3W1ZSH_PROMPT_IDENTITY=""
+[[ -z ${SSH_CONNECTION:-} ]] || J3W1ZSH_PROMPT_IDENTITY="%F{$J3W1ZSH_COLOR_BLOOD}%n@%m%f "
+PROMPT='${J3W1ZSH_PROMPT_IDENTITY}%F{${J3W1ZSH_COLOR_FOREGROUND}}%~%f${vcs_info_msg_0_}
+%F{${J3W1ZSH_COLOR_BRIGHT_RED}}>%f '
+
 export EDITOR="nvim"
 export VISUAL="nvim"
-export WRITER_DOCUMENTS="${BLOODY_WRITER_DOCUMENTS:-$HOME/Documents}"
 
 alias ls='ls --color=auto'
 alias ll='ls -alF'
@@ -47,27 +47,11 @@ alias grep='grep --color=auto'
 alias tree='tree -C --dirsfirst -F'
 alias v='nvim'
 alias vim='nvim'
-alias ta='tma'
-alias tn='tmux new-session -A -s writer'
+alias ta='j3w1zsh attach'
+alias tn='j3w1zsh attach --new j3w1zsh'
+alias je='j3w1zsh edit'
 
-writer() {
-  if [[ ! -d $WRITER_DOCUMENTS ]]; then
-    printf 'Writer directory does not exist: %s\n' "$WRITER_DOCUMENTS" >&2
-    return 1
-  fi
-  cd "$WRITER_DOCUMENTS" && nvim
-}
-
-wsl-writer() {
-  if [[ -z ${BLOODY_WRITER_WSL_HOST:-} || -z ${BLOODY_WRITER_WSL_USER:-} ]]; then
-    printf 'Remote WSL is not configured. Run: bloody-writer remote\n' >&2
-    return 1
-  fi
-  local remote_tma="${BLOODY_WRITER_WSL_TMA:-/home/$BLOODY_WRITER_WSL_USER/.local/bin/tma}"
-  ssh -t -- "$BLOODY_WRITER_WSL_USER@$BLOODY_WRITER_WSL_HOST" "$remote_tma"
-}
-
-# Reuse one passphrase-unlocked GitHub key across terminals and tmux clients.
-if [[ -n ${BLOODY_WRITER_GITHUB_KEY:-} && -f $BLOODY_WRITER_GITHUB_KEY ]]; then
-  eval "$(keychain --eval --quiet "$(basename -- "$BLOODY_WRITER_GITHUB_KEY")")"
+# Reuse an explicitly selected passphrase-protected GitHub key across shells.
+if [[ -n ${J3W1ZSH_GITHUB_KEY:-} && -f $J3W1ZSH_GITHUB_KEY ]]; then
+  eval "$(keychain --eval --quiet "$(basename -- "$J3W1ZSH_GITHUB_KEY")")"
 fi

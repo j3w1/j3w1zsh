@@ -15,7 +15,7 @@ command -v nvim >/dev/null 2>&1 || {
 
 printf 'Updating the reviewed repository lockfile in maintainer mode...\n'
 env \
-  BLOODY_WRITER_MAINTAINER=1 \
+  J3W1ZSH_MAINTAINER=1 \
   XDG_CONFIG_HOME="$repo_root/dotfiles/nvim/.config" \
   nvim --headless "+Lazy! update" +qa
 

@@ -2,25 +2,38 @@
 
 ## Supported version
 
-Security fixes are applied to the current `main` branch and latest tagged release.
+Security fixes apply to the current `main` branch and latest tagged release.
 
-## Reporting a vulnerability
+## Report a vulnerability
 
-Use GitHub's private vulnerability reporting feature for this repository. Do not include live
-tokens, private keys, passphrases, personal documents, or third-party secrets in a report.
+Use GitHub private vulnerability reporting. Do not include live tokens, private keys,
+passphrases, personal documents, database bytes, or third-party secrets.
 
-For an accidentally committed secret:
+For an accidentally published secret:
 
-1. Revoke or rotate it immediately.
-2. Remove it from the working tree and Git history.
-3. Review GitHub, Codex, SSH, and package-provider logs for misuse.
-4. Report the incident privately.
+1. revoke or rotate it immediately;
+2. remove it from the working tree and published history;
+3. review relevant provider, SSH, and authentication logs;
+4. report the incident privately.
 
-Deleting a secret from the latest commit is not sufficient after it has been published.
+Deleting a secret only from the latest commit is insufficient after publication.
 
-## Installer trust
+## Trust boundary
 
-Read `scripts/phases/` before running the installer on a sensitive machine. The project targets
-fresh Arch Linux on Windows WSL and native Termux on Android. WSL performs privileged work only in
-foreground phases; Termux rejects root. Both paths back up conflicting dotfiles. See
-[the security model](docs/SECURITY-MODEL.md).
+Inspect the immutable checkout, `bin/j3w1zsh`, selected platform adapter, action plan, and phases
+before installation on a sensitive machine. Begin with `./install.sh --dry-run`.
+
+- WSL and native Arch privilege is explicit, narrow, planned, and foreground-only.
+- Termux rejects root, privilege wrappers, system destinations, and host-level adapters before
+  state or package mutation.
+- Conflicting managed files are backed up; user settings and credentials are never overwritten.
+- Workspace apply requires an approved tracked regular committed-clean profile, committed-clean
+  referenced sources, exact digest display, explicit trust, and bounded adapters/direct argv.
+- Update is fast-forward-only and stops on authored, staged, deleted, renamed, unique, or
+  divergent work.
+- Migration preserves recoverable bytes and unique Git refs before stopping; cutover happens
+  only after new verification and rollback remains rerunnable.
+- `plan` and `--dry-run` may inspect selected state and remote refs but create no durable state,
+  trust, cache, host configuration, package operation, or Git ref.
+
+The detailed compatible contract is the pinned Wiki [Security Model](https://github.com/j3w1/j3w1zsh/wiki/Security-Model).

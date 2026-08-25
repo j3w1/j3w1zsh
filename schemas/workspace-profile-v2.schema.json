@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/j3w1/j3w1zsh/blob/main/schemas/workspace-profile-v2.schema.json",
+  "title": "j3w1zsh workspace profile v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "workspace", "targets"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": { "const": 2 },
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "display_name", "minimum_j3w1zsh_version", "review_state"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$" },
+        "display_name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "minimum_j3w1zsh_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "review_state": { "enum": ["candidate", "approved"] }
+      }
+    },
+    "targets": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "arch": { "$ref": "#/$defs/archTarget" },
+        "wsl": { "$ref": "#/$defs/archTarget" },
+        "termux": { "$ref": "#/$defs/termuxTarget" }
+      }
+    }
+  },
+  "$defs": {
+    "packageArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9@._+:-]+$" }
+    },
+    "runtimeRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter", "source", "requirement"],
+      "properties": {
+        "adapter": { "enum": ["php", "node", "pnpm"] },
+        "source": { "type": "string", "minLength": 1 },
+        "requirement": { "type": "string", "minLength": 1 }
+      }
+    },
+    "requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binaries", "extensions"],
+      "properties": {
+        "binaries": { "$ref": "#/$defs/packageArray" },
+        "extensions": { "$ref": "#/$defs/packageArray" }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["argv"],
+      "properties": {
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["setup", "verify", "development"],
+      "properties": {
+        "setup": { "type": "array", "items": { "$ref": "#/$defs/command" } },
+        "verify": { "type": "array", "items": { "$ref": "#/$defs/command" } },
+        "development": { "$ref": "#/$defs/command" }
+      }
+    },
+    "environmentGuard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["app_env", "app_url_scope", "db_connection", "sqlite_backup"],
+      "properties": {
+        "app_env": { "const": "local" },
+        "app_url_scope": { "const": "loopback" },
+        "db_connection": { "enum": ["sqlite", "none"] },
+        "sqlite_backup": { "type": "boolean" }
+      }
+    },
+    "port": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host", "port", "purpose"],
+      "properties": {
+        "host": { "enum": ["127.0.0.1", "localhost", "::1"] },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "purpose": { "type": "string", "minLength": 1, "maxLength": 100 }
+      }
+    },
+    "managedFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter", "source", "destination"],
+      "properties": {
+        "adapter": { "enum": ["home-file", "php-conf"] },
+        "source": { "type": "string", "minLength": 1 },
+        "destination": { "type": "string", "minLength": 1 }
+      }
+    },
+    "archTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packages", "runtime_requirements", "requirements", "managed_files", "environment_guard", "lifecycle", "ports", "capabilities"],
+      "properties": {
+        "packages": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pacman", "npm_global", "pip_user"],
+          "properties": {
+            "pacman": { "$ref": "#/$defs/packageArray" },
+            "npm_global": { "$ref": "#/$defs/packageArray" },
+            "pip_user": { "$ref": "#/$defs/packageArray" }
+          }
+        },
+        "runtime_requirements": { "type": "array", "items": { "$ref": "#/$defs/runtimeRequirement" } },
+        "requirements": { "$ref": "#/$defs/requirements" },
+        "managed_files": { "type": "array", "items": { "$ref": "#/$defs/managedFile" } },
+        "environment_guard": { "$ref": "#/$defs/environmentGuard" },
+        "lifecycle": { "$ref": "#/$defs/lifecycle" },
+        "ports": { "type": "array", "items": { "$ref": "#/$defs/port" } },
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["j3w1zsh_base"],
+          "properties": { "j3w1zsh_base": { "const": true } }
+        }
+      }
+    },
+    "termuxTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packages", "runtime_requirements", "requirements", "managed_files", "environment_guard", "lifecycle", "ports", "capabilities"],
+      "properties": {
+        "packages": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pkg", "npm_global", "pip_user"],
+          "properties": {
+            "pkg": { "$ref": "#/$defs/packageArray" },
+            "npm_global": { "$ref": "#/$defs/packageArray" },
+            "pip_user": { "$ref": "#/$defs/packageArray" }
+          }
+        },
+        "runtime_requirements": { "type": "array", "items": { "$ref": "#/$defs/runtimeRequirement" } },
+        "requirements": { "$ref": "#/$defs/requirements" },
+        "managed_files": { "type": "array", "items": { "$ref": "#/$defs/managedFile" } },
+        "environment_guard": { "$ref": "#/$defs/environmentGuard" },
+        "lifecycle": { "$ref": "#/$defs/lifecycle" },
+        "ports": { "type": "array", "items": { "$ref": "#/$defs/port" } },
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["j3w1zsh_base", "remote_host"],
+          "properties": {
+            "j3w1zsh_base": { "const": true },
+            "remote_host": { "enum": ["none", "optional", "required"] }
+          }
+        }
+      }
+    }
+  }
+}

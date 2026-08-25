@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/j3w1/j3w1zsh/blob/main/schemas/packages-v1.schema.json",
+  "title": "j3w1zsh package overrides v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "additions", "exclusions"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "additions": { "$ref": "#/$defs/managers" },
+    "exclusions": { "$ref": "#/$defs/managers" }
+  },
+  "$defs": {
+    "packageArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9@._+:-]+$" }
+    },
+    "managers": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pacman": { "$ref": "#/$defs/packageArray" },
+        "pkg": { "$ref": "#/$defs/packageArray" },
+        "npm_global": { "$ref": "#/$defs/packageArray" },
+        "pip_user": { "$ref": "#/$defs/packageArray" }
+      }
+    }
+  }
+}

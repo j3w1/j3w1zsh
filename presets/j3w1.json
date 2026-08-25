@@ -1,0 +1,53 @@
+{
+  "$schema": "../schemas/preset-v1.schema.json",
+  "schema_version": 1,
+  "id": "j3w1",
+  "features": [
+    "shell", "tmux", "neovim", "github", "codex", "remote",
+    "host-theme", "developer-tools", "workspace"
+  ],
+  "theme": "j3w1zsh",
+  "platforms": {
+    "arch": {
+      "pacman": [
+        "base-devel", "bubblewrap", "curl", "fd", "fzf", "git", "github-cli", "jq",
+        "keychain", "less", "lua-language-server", "marksman", "neovim", "nodejs-lts-krypton",
+        "npm", "openssh", "pnpm", "python", "python-black", "python-pip", "python-pynvim",
+        "ripgrep", "shellcheck", "shfmt", "stylua", "sudo", "tmux", "tree",
+        "tree-sitter-cli", "unzip", "wget", "xdg-utils", "zip", "zsh"
+      ],
+      "npm_global": [
+        "bash-language-server", "neovim", "prettier", "pyright", "typescript",
+        "typescript-language-server", "vscode-langservers-extracted"
+      ],
+      "pip_user": []
+    },
+    "wsl": {
+      "pacman": [
+        "base-devel", "bubblewrap", "curl", "fd", "fzf", "git", "github-cli", "jq",
+        "keychain", "less", "lua-language-server", "marksman", "neovim", "nodejs-lts-krypton",
+        "npm", "openssh", "pnpm", "python", "python-black", "python-pip", "python-pynvim",
+        "ripgrep", "shellcheck", "shfmt", "stylua", "sudo", "tmux", "tree",
+        "tree-sitter-cli", "unzip", "wget", "xdg-utils", "zip", "zsh"
+      ],
+      "npm_global": [
+        "bash-language-server", "neovim", "prettier", "pyright", "typescript",
+        "typescript-language-server", "vscode-langservers-extracted"
+      ],
+      "pip_user": []
+    },
+    "termux": {
+      "pkg": [
+        "bash", "command-not-found", "coreutils", "curl", "fd", "fzf", "gh", "git", "jq",
+        "keychain", "lua-language-server", "marksman", "neovim", "nodejs-lts", "npm", "openssh",
+        "proot-distro", "python", "python-pip", "python-pynvim", "ripgrep", "shellcheck", "shfmt",
+        "stylua", "termux-api", "tmux", "tree", "tree-sitter", "unzip", "zsh"
+      ],
+      "npm_global": [
+        "bash-language-server", "neovim", "prettier", "pyright", "typescript",
+        "typescript-language-server", "vscode-langservers-extracted"
+      ],
+      "pip_user": ["black"]
+    }
+  }
+}

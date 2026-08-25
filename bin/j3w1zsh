@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+resolved_self="$(readlink -f -- "${BASH_SOURCE[0]}")"
+J3W1ZSH_REPO_ROOT="$(cd -- "$(dirname -- "$resolved_self")/.." && pwd -P)"
+export J3W1ZSH_REPO_ROOT
+# shellcheck source=scripts/lib/core/init.sh
+source "$J3W1ZSH_REPO_ROOT/scripts/lib/core/init.sh"
+
+arguments=()
+after_separator=0
+seen_json=0
+seen_plain=0
+while (($#)); do
+  if ((after_separator)); then
+    arguments+=("$1")
+    shift
+    continue
+  fi
+  case "$1" in
+  --json) J3W1ZSH_OUTPUT_MODE=json; seen_json=1 ;;
+  --plain) J3W1ZSH_OUTPUT_MODE=plain; seen_plain=1 ;;
+  --color=auto | --color=always | --color=never) J3W1ZSH_COLOR_MODE="${1#--color=}" ;;
+  --) after_separator=1 ;;
+  *) arguments+=("$1") ;;
+  esac
+  shift
+done
+export J3W1ZSH_OUTPUT_MODE J3W1ZSH_COLOR_MODE
+j3w1zsh_output_init
+J3W1ZSH_ACTIVE_COMMAND="${arguments[0]:-help}"
+export J3W1ZSH_ACTIVE_COMMAND
+if ((seen_json == 1 && seen_plain == 1)); then
+  J3W1ZSH_OUTPUT_MODE=json
+  export J3W1ZSH_OUTPUT_MODE
+  j3w1zsh_output_init
+  j3w1zsh_usage_error "--json and --plain are mutually exclusive."
+fi
+set -- "${arguments[@]}"
+
+# shellcheck source=scripts/lib/presets.sh
+source "$J3W1ZSH_REPO_ROOT/scripts/lib/presets.sh"
+# shellcheck source=scripts/lib/packages.sh
+source "$J3W1ZSH_REPO_ROOT/scripts/lib/packages.sh"
+# shellcheck source=scripts/lib/themes.sh
+source "$J3W1ZSH_REPO_ROOT/scripts/lib/themes.sh"
+# shellcheck source=scripts/lib/workspace-v2.sh
+source "$J3W1ZSH_REPO_ROOT/scripts/lib/workspace-v2.sh"
+# shellcheck source=scripts/lib/wiki.sh
+source "$J3W1ZSH_REPO_ROOT/scripts/lib/wiki.sh"
+# shellcheck source=scripts/legacy/workspace-v1-converter.sh
+source "$J3W1ZSH_REPO_ROOT/scripts/legacy/workspace-v1-converter.sh"
+# shellcheck source=scripts/legacy/former-repository.sh
+source "$J3W1ZSH_REPO_ROOT/scripts/legacy/former-repository.sh"
+# shellcheck source=scripts/lib/core/plan.sh
+source "$J3W1ZSH_REPO_ROOT/scripts/lib/core/plan.sh"
+# shellcheck source=scripts/lib/core/git.sh
+source "$J3W1ZSH_REPO_ROOT/scripts/lib/core/git.sh"
+for adapter in arch wsl termux; do
+  # shellcheck source=/dev/null
+  source "$J3W1ZSH_REPO_ROOT/scripts/platforms/$adapter.sh"
+done
+for command_file in help install plan status editor-session packages theme backup update remote wiki migrate; do
+  # shellcheck source=/dev/null
+  source "$J3W1ZSH_REPO_ROOT/scripts/commands/$command_file.sh"
+done
+
+J3W1ZSH_ACTIVE_COMMAND="${1:-help}"
+readonly J3W1ZSH_ACTIVE_COMMAND
+export J3W1ZSH_ACTIVE_COMMAND
+shift || true
+case "$J3W1ZSH_ACTIVE_COMMAND" in
+help | -h | --help) j3w1zsh_help_command "$@" ;;
+install) j3w1zsh_install_command "$@" ;;
+plan) j3w1zsh_plan_command "$@" ;;
+status) j3w1zsh_status_command "$@" ;;
+doctor) j3w1zsh_doctor_command "$@" ;;
+platform) j3w1zsh_platform_command "$@" ;;
+edit) j3w1zsh_edit_command "$@" ;;
+attach) j3w1zsh_attach_command "$@" ;;
+packages) j3w1zsh_packages_command "$@" ;;
+theme) j3w1zsh_theme_command "$@" ;;
+workspace) j3w1zsh_workspace_command "$@" ;;
+backup) j3w1zsh_backup_command "$@" ;;
+restore) j3w1zsh_restore_command "$@" ;;
+reset-phase) j3w1zsh_reset_phase_command "$@" ;;
+update) j3w1zsh_update_command "$@" ;;
+remote) j3w1zsh_remote_command "$@" ;;
+wiki) j3w1zsh_wiki_command "$@" ;;
+migrate) j3w1zsh_migrate_command "$@" ;;
+*) j3w1zsh_usage_error "Unknown command: $J3W1ZSH_ACTIVE_COMMAND" ;;
+esac

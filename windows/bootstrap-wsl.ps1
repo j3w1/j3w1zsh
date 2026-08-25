@@ -15,7 +15,7 @@ if (-not (Test-Administrator)) {
     throw "Open PowerShell as Administrator, then run this script again."
 }
 
-Write-Host "Bloody Writer - WSL bootstrap" -ForegroundColor Red
+Write-Host "j3w1zsh - WSL bootstrap" -ForegroundColor Red
 
 $wslCommand = Get-Command wsl.exe -ErrorAction SilentlyContinue
 if ($null -eq $wslCommand) {
@@ -49,6 +49,6 @@ else {
 Write-Host ""
 Write-Host "Open Arch Linux, then run:" -ForegroundColor White
 Write-Host "  pacman -Syu --needed git"
-Write-Host "  git clone https://github.com/1w3j/bloody-writer.git"
-Write-Host "  cd bloody-writer"
+Write-Host "  git clone https://github.com/j3w1/j3w1zsh.git ~/j3w1zsh"
+Write-Host "  cd ~/j3w1zsh"
 Write-Host "  ./install.sh"

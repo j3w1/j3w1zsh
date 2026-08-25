@@ -1,46 +1,55 @@
 # Contributing
 
-Contributions are welcome when they preserve Bloody Writer's security and portability boundary
-across Arch Linux on Windows WSL and Termux on Android.
+Contributions are welcome when they preserve `j3w1zsh` safety, reproducibility, and portability
+across native official Arch Linux, official Arch Linux under WSL 2, and native Termux on Android.
 
-Human maintainers using a coding agent should begin with
-[`docs/AI-MAINTAINERS.md`](docs/AI-MAINTAINERS.md). Compatible agents must read the root
-[`AGENTS.md`](AGENTS.md) before changing files.
+Read [AGENTS.md](AGENTS.md) even when working without an agent. Use `agent-context.json` and the
+compatible Wiki commit pinned by `wiki-lock.json` for the smallest task-specific context.
 
 ## Development
 
 ```bash
-git clone https://github.com/1w3j/bloody-writer.git
-cd bloody-writer
+git clone https://github.com/j3w1/j3w1zsh.git
+cd j3w1zsh
 tests/run.sh
 ```
 
-Use `./install.sh --dry-run` before testing system changes. For dotfile/linker work, rely on the
-isolated temporary-home tests rather than replacing a real home configuration.
+Use `./install.sh --dry-run` before a real install. Exercise configuration, migration, update,
+and workspace behavior in disposable homes/repositories rather than against personal state.
 
 ## Pull requests
 
-- Explain the user problem and the behavior change.
-- Keep phases idempotent and resumable.
-- Add or update focused tests.
-- Update operational docs and cheat sheets.
-- Update `CHANGELOG.md` for user-visible behavior.
-- Confirm that no secret, credential, personal path, history, or private data is included.
+- Explain the problem, authority, user-visible behavior, and platform impact.
+- Keep phases idempotent, verified, and resumable.
+- Add focused tests and update the affected root/Wiki contract.
+- Update [CHANGELOG.md](CHANGELOG.md) for user-visible changes.
+- Preserve unrelated work and never include credentials, private data, personal paths, or
+  generated device state.
+- Distinguish local, hosted, simulated, and real-device evidence.
 
 Run:
 
 ```bash
 tests/run.sh
 git diff --check
+git status --short
 ```
 
-## Theme changes
+## Wiki changes
 
-Theme changes should include a contrast rationale and keep the palette synchronized across
-Neovim, tmux, Zsh, Windows Terminal, Termux, and documentation where applicable. Follow the
-examples and file-safety map in [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md).
+Normal contributors do not need Wiki push rights. Base a patch on the exact OID in
+`wiki-lock.json`; an owner publishes it, verifies reachability, and updates the code lock in a
+reviewable commit. A lock naming an unreachable or incompatible Wiki commit fails CI.
+
+## Theme and screenshot changes
+
+Theme changes must keep declarative roles and all generated renderers synchronized. Explain
+contrast and deliberate terminal-versus-semantic color differences.
+
+Screenshots must be genuine new captures and receive human pixel inspection for private or
+identifying content before publication. Do not relabel historical captures.
 
 ## Security reports
 
-Do not open a public issue for a credential exposure or remotely exploitable installer flaw.
+Do not open a public issue for credential exposure or a remotely exploitable installer flaw.
 Follow [SECURITY.md](SECURITY.md).

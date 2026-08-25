@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "j3w1zsh",
+  "display_name": "j3w1zsh",
+  "palette": {
+    "background": "#000000",
+    "foreground": "#FFF1F1",
+    "blood": "#B00020",
+    "bright_red": "#FF334D",
+    "selection": "#3A0010",
+    "muted": "#DFA0A0",
+    "orange": "#FF8C42",
+    "blue": "#5FAFFF",
+    "semantic_green": "#50FA7B"
+  },
+  "ansi": [
+    "#000000", "#B00020", "#B00020", "#FF8C42", "#5FAFFF", "#B00020", "#5FAFFF", "#FFF1F1",
+    "#4A2028", "#FF334D", "#FF334D", "#FFB36B", "#87C7FF", "#FF334D", "#87C7FF", "#FFFFFF"
+  ]
+}
