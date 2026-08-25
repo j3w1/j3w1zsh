@@ -15,6 +15,8 @@ Archives contain only selected j3w1zsh-managed configuration paths. Restore vali
 
 Allowlisted generated Neovim lock drift is saved as exact bytes plus a binary patch under `~/.local/state/j3w1zsh/update-recovery/` before repair. Unknown or authored state is never repaired automatically.
 
+An explicitly approved false package-provenance repair stores the exact removed rows, negative manager verification, corrected code commit, and invalidated phase-20 marker under `~/.local/state/j3w1zsh/packages/repairs/`. That evidence is permanent local recovery data. Unrelated ledger rows and all package-manager state remain unchanged.
+
 ## Workspace recovery
 
 Each manifest/platform generation owns managed-file backups, optional SQLite pre-setup bytes, trust, and phase markers. A changed manifest creates a new generation. Failed lifecycle actions leave later markers absent for explicit resume.

@@ -4,9 +4,13 @@
 
 A user-owned external action is pending—commonly WSL restart, Windows Terminal reload, Android permission, companion app, authentication, or reviewed settings. Follow the exact message and rerun the same command. `--yes` never bypasses a manual host checkpoint.
 
+For the exact Corepack/Pacman `pnpm` collision, confirm the reported resolved targets are owned by Pacman package `corepack`. j3w1zsh preserves both shim paths. Only after that ownership review should the owner run the displayed `sudo corepack disable pnpm --install-directory /usr/bin`, verify `/usr/bin/pnpm` and `/usr/bin/pnpx` are absent, and rerun phase 20.
+
 ## Exit 21
 
 Git or migration found protected authored, staged, untracked, deleted, renamed, ahead, divergent, or unique-commit state. Inspect the listed paths and recovery root. Do not reset, clean, rebase, or force-push merely to continue.
+
+Package collision exit 21 means an existing `pnpm` or `pnpx` path did not match the complete Corepack-owned shim contract. Do not delete or overwrite it. Establish exact type, target, and package ownership before deciding how to proceed.
 
 If `git -C ~/j3w1zsh status --short --branch` reports `[gone]`, do not reset, reclone, or roll back an otherwise successful migration. Follow the exact-commit `--repair-tracking` procedure in [Migrating from the Former Project](Migrating-from-the-Former-Project). It refuses dirty, unique, divergent, noncanonical, or mismatched state and does not change HEAD or checkout files.
 

@@ -13,6 +13,8 @@ bin/j3w1zsh
 
 Base phases are `00-preflight`, `10-platform`, `20-packages`, `30-shell`, `40-config`, `50-theme`, `60-neovim`, `70-codex`, `80-github`, and `90-verify`.
 
+The action graph may contain several typed actions for one phase. Execution validates every selected action, then invokes the aggregate phase exactly once in canonical phase order. Phase functions are simple commands rather than shell conditions, so a failing child command terminates the phase before its marker and before every later phase.
+
 Each completed phase is atomic JSON containing state schema, product version, platform, selected preset/theme, relevant input digest, UTC timestamp, and verified commit. Changed inputs invalidate the marker. Unselected and platform-inapplicable features are reported instead of falsely marked successful.
 
 Workspace generations add workspace ID, full manifest SHA-256, and platform. Trust and phase completion are separate records. A failed action is never marked complete.

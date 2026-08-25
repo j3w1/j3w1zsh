@@ -120,6 +120,92 @@ j3w1zsh_package_ledger_file() {
   printf '%s/packages/provenance.json\n' "$J3W1ZSH_STATE_DIR"
 }
 
+j3w1zsh_validate_package_state_directory() {
+  local directory="$1" resolved_home resolved_directory
+  [[ -d $directory && ! -L $directory ]] || j3w1zsh_die "Package state directory must be a regular non-symlink directory: $directory" \
+    "$J3W1ZSH_EXIT_PROTECTED" invalid_package_provenance
+  resolved_home="$(readlink -f -- "$HOME")"
+  resolved_directory="$(readlink -f -- "$directory")"
+  case "$resolved_directory" in
+  "$resolved_home" | "$resolved_home"/*) ;;
+  *) j3w1zsh_die "Package state resolves outside HOME; preserving it for owner review: $directory" \
+    "$J3W1ZSH_EXIT_PROTECTED" invalid_package_provenance ;;
+  esac
+}
+
+j3w1zsh_validate_package_ledger() {
+  local ledger="$1"
+  j3w1zsh_validate_package_state_directory "$(dirname -- "$ledger")"
+  [[ -f $ledger && ! -L $ledger ]] || j3w1zsh_die "Package provenance must be a regular non-symlink file: $ledger" "$J3W1ZSH_EXIT_PROTECTED" invalid_package_provenance
+  jq -e '
+    type == "object" and (keys | sort) == ["packages","schema_version"] and .schema_version == 1 and
+    (.packages | type == "array" and
+      ((map([.manager,.package]) | length) == (map([.manager,.package]) | unique | length)) and
+      all(.[];
+        type == "object" and
+        (keys | sort) == (["declaring_layers","first_seen_product_version","installed_by_j3w1zsh","last_required_plan_digest","manager","package","pre_existing"] | sort) and
+        (.manager == "pacman" or .manager == "pkg" or .manager == "npm_global" or .manager == "pip_user") and
+        (.package | type == "string" and test("^[A-Za-z0-9@._+:-]+$")) and
+        (.declaring_layers | type == "array" and length == (unique | length) and all(.[]; . == "core" or . == "preset" or . == "user" or . == "workspace")) and
+        (.pre_existing | type == "boolean") and (.installed_by_j3w1zsh | type == "boolean") and
+        (.first_seen_product_version | type == "string" and length > 0) and
+        (.last_required_plan_digest | type == "string" and test("^[0-9a-f]{64}$"))
+      )
+    )
+  ' "$ledger" >/dev/null || j3w1zsh_die "Package provenance failed strict validation: $ledger" "$J3W1ZSH_EXIT_PROTECTED" invalid_package_provenance
+}
+
+j3w1zsh_pacman_collision_root() {
+  if [[ $J3W1ZSH_TEST_MODE == 1 && -n ${J3W1ZSH_TEST_SYSTEM_ROOT:-} ]]; then
+    [[ $J3W1ZSH_TEST_SYSTEM_ROOT == /* ]] || j3w1zsh_die "Test system root must be absolute."
+    printf '%s\n' "${J3W1ZSH_TEST_SYSTEM_ROOT%/}"
+  else
+    printf '/\n'
+  fi
+}
+
+j3w1zsh_pacman_path_owner() {
+  pacman -Qqo -- "$1" 2>/dev/null
+}
+
+j3w1zsh_guard_pacman_pnpm_collision() {
+  local root bin_dir pnpm_link pnpx_link pnpm_target pnpx_target checkpoint
+  local resolved_pnpm resolved_pnpx pnpm_owner="" pnpx_owner=""
+  root="$(j3w1zsh_pacman_collision_root)"
+  bin_dir="${root%/}/usr/bin"
+  pnpm_link="$bin_dir/pnpm"
+  pnpx_link="$bin_dir/pnpx"
+  pnpm_target="${root%/}/usr/lib/node_modules/corepack/dist/pnpm.js"
+  pnpx_target="${root%/}/usr/lib/node_modules/corepack/dist/pnpx.js"
+  checkpoint=pacman-pnpm-corepack-collision
+
+  if [[ ! -e $pnpm_link && ! -L $pnpm_link && ! -e $pnpx_link && ! -L $pnpx_link ]]; then
+    j3w1zsh_clear_manual "$checkpoint"
+    return 0
+  fi
+
+  resolved_pnpm="$(readlink -f -- "$pnpm_link" 2>/dev/null || true)"
+  resolved_pnpx="$(readlink -f -- "$pnpx_link" 2>/dev/null || true)"
+  pnpm_owner="$(j3w1zsh_pacman_path_owner "$pnpm_target" || true)"
+  pnpx_owner="$(j3w1zsh_pacman_path_owner "$pnpx_target" || true)"
+  if [[ -L $pnpm_link && -L $pnpx_link && $resolved_pnpm == "$pnpm_target" && $resolved_pnpx == "$pnpx_target" &&
+    $pnpm_owner == corepack && $pnpx_owner == corepack ]] &&
+    pacman -Q -- corepack >/dev/null 2>&1 &&
+    ! j3w1zsh_pacman_path_owner "$pnpm_link" >/dev/null 2>&1 &&
+    ! j3w1zsh_pacman_path_owner "$pnpx_link" >/dev/null 2>&1; then
+    j3w1zsh_warn "Pacman pnpm is blocked by the exact Corepack shims at /usr/bin/pnpm and /usr/bin/pnpx."
+    j3w1zsh_note "Pacman owns both resolved shim targets through package corepack; Pacman does not own the two shim paths."
+    j3w1zsh_note "No shim was overwritten or removed. After owner review, run: sudo corepack disable pnpm --install-directory /usr/bin"
+    j3w1zsh_note "Then verify both shim paths are absent and rerun phase 20."
+    j3w1zsh_mark_manual_pending "$checkpoint" \
+      "Review the exact Corepack/Pacman pnpm ownership evidence, remove only the Corepack pnpm shims with the displayed direct command, verify both paths are absent, and rerun phase 20."
+    return "$J3W1ZSH_EXIT_CHECKPOINT"
+  fi
+
+  j3w1zsh_die "Pacman pnpm is blocked by existing /usr/bin/pnpm or /usr/bin/pnpx content that does not match the exact Corepack-owned shim contract. No path was changed." \
+    "$J3W1ZSH_EXIT_PROTECTED" ambiguous_package_collision
+}
+
 j3w1zsh_record_package_provenance() {
   local manager="$1"
   local package="$2"
@@ -130,7 +216,10 @@ j3w1zsh_record_package_provenance() {
   local ledger temporary existing installed_by declaring_layers
   ledger="$(j3w1zsh_package_ledger_file)"
   existing='{"schema_version":1,"packages":[]}'
-  [[ ! -f $ledger ]] || existing="$(cat "$ledger")"
+  if [[ -e $ledger || -L $ledger ]]; then
+    j3w1zsh_validate_package_ledger "$ledger"
+    existing="$(cat "$ledger")"
+  fi
   installed_by=true
   [[ $pre_existing == false ]] || installed_by=false
   declaring_layers="$(j3w1zsh_package_declaring_layers_json "$manager" "$package")"
@@ -162,11 +251,115 @@ j3w1zsh_forget_package_provenance() {
   local manager="$1" package="$2" ledger temporary
   ledger="$(j3w1zsh_package_ledger_file)"
   [[ -f $ledger ]] || return 0
+  j3w1zsh_validate_package_ledger "$ledger"
   temporary="$(mktemp "$J3W1ZSH_STATE_DIR/packages/.provenance.XXXXXX")"
   jq --arg manager "$manager" --arg package "$package" \
     '.packages = [.packages[] | select(.manager != $manager or .package != $package)]' "$ledger" >"$temporary"
   chmod 600 "$temporary"
   mv -- "$temporary" "$ledger"
+}
+
+j3w1zsh_package_repair_candidates_json() {
+  local manager="$1"
+  shift
+  local ledger package record result='[]'
+  ledger="$(j3w1zsh_package_ledger_file)"
+  j3w1zsh_validate_package_ledger "$ledger"
+  for package in "$@"; do
+    record="$(jq -c --arg manager "$manager" --arg package "$package" \
+      '[.packages[] | select(.manager == $manager and .package == $package)] | if length == 1 then .[0] else empty end' "$ledger")"
+    [[ -n $record ]] || j3w1zsh_die "No unique provenance record exists for $manager package $package; preserving state for owner review." \
+      "$J3W1ZSH_EXIT_PROTECTED" provenance_repair_not_applicable
+    jq -e '.pre_existing == false and .installed_by_j3w1zsh == true' <<<"$record" >/dev/null ||
+      j3w1zsh_die "The provenance record for $manager package $package is not an install-ownership claim; preserving it." \
+        "$J3W1ZSH_EXIT_PROTECTED" provenance_repair_not_applicable
+    if j3w1zsh_package_is_installed "$manager" "$package"; then
+      j3w1zsh_die "Package manager $manager currently verifies $package as installed; preserving its provenance." \
+        "$J3W1ZSH_EXIT_PROTECTED" package_currently_installed
+    fi
+    result="$(jq -cn --argjson result "$result" --argjson record "$record" \
+      '$result + [{manager:$record.manager,package:$record.package,manager_verified_installed:false,removed_record:$record,reason:"ledger claims j3w1zsh ownership but the exact package manager reports the package absent"}]')"
+  done
+  jq -cn --argjson result "$result" '$result | sort_by(.manager,.package)'
+}
+
+j3w1zsh_package_repair_provenance_execute() {
+  local candidates="$1" ledger marker repairs_dir stamp evidence temporary_ledger temporary_evidence
+  local current_candidates phase_record=null ledger_digest
+  local repair_packages=()
+  ledger="$(j3w1zsh_package_ledger_file)"
+  marker="$(j3w1zsh_phase_marker 20-packages)"
+  repairs_dir="$J3W1ZSH_STATE_DIR/packages/repairs"
+
+  # Revalidate package-manager and ledger projections immediately before the
+  # first state mutation. A changed or ambiguous record is never overwritten.
+  local manager
+  manager="$(jq -r '.[0].manager' <<<"$candidates")"
+  mapfile -t repair_packages < <(jq -r '.[].package' <<<"$candidates")
+  current_candidates="$(j3w1zsh_package_repair_candidates_json "$manager" "${repair_packages[@]}")"
+  [[ $(jq -S -c . <<<"$current_candidates") == "$(jq -S -c . <<<"$candidates")" ]] ||
+    j3w1zsh_die "Package provenance changed during repair planning; preserving it for owner review." \
+      "$J3W1ZSH_EXIT_PROTECTED" provenance_repair_changed
+  ledger_digest="$(sha256sum "$ledger" | awk '{print $1}')"
+
+  if [[ -e $marker || -L $marker ]]; then
+    j3w1zsh_validate_package_state_directory "$(dirname -- "$marker")"
+    [[ -f $marker && ! -L $marker ]] || j3w1zsh_die "Phase 20 marker is not a regular file; preserving it for owner review." \
+      "$J3W1ZSH_EXIT_PROTECTED" invalid_phase_marker
+    phase_record="$(jq -c . "$marker")"
+  fi
+
+  j3w1zsh_ensure_dirs
+  if [[ -e $repairs_dir || -L $repairs_dir ]]; then
+    j3w1zsh_validate_package_state_directory "$repairs_dir"
+  else
+    mkdir -- "$repairs_dir"
+  fi
+  chmod 700 "$repairs_dir"
+  stamp="$(date -u +%Y%m%dT%H%M%S)-$$"
+  evidence="$repairs_dir/$stamp.json"
+  [[ ! -e $evidence && ! -L $evidence ]] || j3w1zsh_die "Package provenance repair evidence already exists: $evidence"
+  temporary_ledger="$(mktemp "$J3W1ZSH_STATE_DIR/packages/.provenance-repair.XXXXXX")"
+  temporary_evidence="$(mktemp "$repairs_dir/.repair-evidence.XXXXXX")"
+
+  jq -c --argjson candidates "$candidates" '
+    reduce $candidates[] as $candidate (.;
+      .packages = [.packages[] | select(.manager != $candidate.manager or .package != $candidate.package)]
+    )
+  ' "$ledger" >"$temporary_ledger"
+  j3w1zsh_validate_package_ledger "$temporary_ledger"
+  jq -cn \
+    --arg recorded_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --arg verified_commit "$(j3w1zsh_repo_commit)" \
+    --argjson candidates "$candidates" \
+    --argjson invalidated_phase_marker "$phase_record" \
+    '{schema_version:1,operation:"package-provenance-repair",recorded_at:$recorded_at,verified_commit:$verified_commit,removed_records:[$candidates[].removed_record],manager_verification:[$candidates[] | {manager,package,installed:.manager_verified_installed}],invalidated_phase_marker:$invalidated_phase_marker}' \
+    >"$temporary_evidence"
+  chmod 600 "$temporary_ledger" "$temporary_evidence"
+
+  [[ $(sha256sum "$ledger" | awk '{print $1}') == "$ledger_digest" ]] ||
+    j3w1zsh_die "Package provenance changed before repair commit; preserving it for owner review." \
+      "$J3W1ZSH_EXIT_PROTECTED" provenance_repair_changed
+  local package
+  for package in "${repair_packages[@]}"; do
+    ! j3w1zsh_package_is_installed "$manager" "$package" ||
+      j3w1zsh_die "Package manager $manager began reporting $package as installed before repair commit; preserving its provenance." \
+        "$J3W1ZSH_EXIT_PROTECTED" package_currently_installed
+  done
+  if [[ $phase_record != null ]]; then
+    [[ -f $marker && ! -L $marker && $(jq -S -c . "$marker") == "$(jq -S -c . <<<"$phase_record")" ]] ||
+      j3w1zsh_die "Phase 20 marker changed before repair commit; preserving it for owner review." \
+        "$J3W1ZSH_EXIT_PROTECTED" invalid_phase_marker
+  fi
+
+  # Evidence becomes durable before the safe invalidation. If a later atomic
+  # ledger replacement fails, phase 20 remains pending and the original false
+  # ledger can be repaired by rerunning the same bounded command.
+  mv -- "$temporary_evidence" "$evidence"
+  [[ ! -e $marker ]] || rm -- "$marker"
+  mv -- "$temporary_ledger" "$ledger"
+  J3W1ZSH_PROVENANCE_REPAIR_EVIDENCE="$evidence"
+  export J3W1ZSH_PROVENANCE_REPAIR_EVIDENCE
 }
 
 j3w1zsh_install_package_set() {
@@ -194,39 +387,47 @@ j3w1zsh_install_package_set() {
   fi
 
   if ((${#missing[@]})); then
+    if [[ $manager == pacman && " ${missing[*]} " == *" pnpm "* ]]; then
+      j3w1zsh_guard_pacman_pnpm_collision
+    fi
     case "$manager" in
     pacman)
       if [[ ${J3W1ZSH_UPDATE_MODE:-0} == 1 || -f $(j3w1zsh_package_ledger_file) ]]; then
-        j3w1zsh_run sudo pacman -S --needed "${missing[@]}"
+        j3w1zsh_run sudo pacman -S --needed "${missing[@]}" || return $?
       else
         j3w1zsh_confirm "Allow pacman to perform a full Arch upgrade and install ${#missing[@]} required packages?" || return 1
-        j3w1zsh_run sudo pacman -Syu --needed "${missing[@]}"
+        j3w1zsh_run sudo pacman -Syu --needed "${missing[@]}" || return $?
       fi
       ;;
     pkg)
       j3w1zsh_confirm "Allow pkg to upgrade Termux and install ${#missing[@]} required packages?" || return 1
-      j3w1zsh_run pkg upgrade -y
-      j3w1zsh_run pkg install -y "${missing[@]}"
+      j3w1zsh_run pkg upgrade -y || return $?
+      j3w1zsh_run pkg install -y "${missing[@]}" || return $?
       ;;
     npm_global)
       if [[ $J3W1ZSH_PLATFORM == termux ]]; then
-        j3w1zsh_run npm install --global "${missing[@]}"
+        j3w1zsh_run npm install --global "${missing[@]}" || return $?
       else
-        j3w1zsh_run sudo npm install --global "${missing[@]}"
+        j3w1zsh_run sudo npm install --global "${missing[@]}" || return $?
       fi
       ;;
-    pip_user) j3w1zsh_run python -m pip install --user "${missing[@]}" ;;
+    pip_user) j3w1zsh_run python -m pip install --user "${missing[@]}" || return $? ;;
     *) j3w1zsh_die "Unsupported package manager: $manager" ;;
     esac
   fi
 
+  [[ $J3W1ZSH_DRY_RUN != 1 ]] || return 0
+  for package in "${packages[@]}"; do
+    j3w1zsh_package_is_installed "$manager" "$package" ||
+      j3w1zsh_die "Package manager $manager did not verify the required package after reconciliation: $package" \
+        "$J3W1ZSH_EXIT_FAILURE" package_verification_failed
+  done
+
   local digest index
   digest="${J3W1ZSH_PACKAGE_PLAN_DIGEST:-$(j3w1zsh_plan_digest)}"
-  if [[ $J3W1ZSH_DRY_RUN != 1 ]]; then
-    for index in "${!packages[@]}"; do
-      j3w1zsh_record_package_provenance "$manager" "${packages[$index]}" "${pre_existing[$index]}" "$digest"
-    done
-  fi
+  for index in "${!packages[@]}"; do
+    j3w1zsh_record_package_provenance "$manager" "${packages[$index]}" "${pre_existing[$index]}" "$digest"
+  done
 }
 
 j3w1zsh_packages_status_json() {
