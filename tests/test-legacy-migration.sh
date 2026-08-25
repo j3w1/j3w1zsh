@@ -80,6 +80,7 @@ run_migration() {
     J3W1ZSH_MIGRATION_TEST_MODE=1 \
     J3W1ZSH_MIGRATION_TEST_PLATFORM=wsl \
     J3W1ZSH_MIGRATION_REMOTE="$new_remote" \
+    J3W1ZSH_MIGRATION_TEST_FORMER_REMOTE="$old_remote" \
     PATH="$fixture_bin:$PATH" \
     "$migration" "$@"
 }
@@ -94,6 +95,7 @@ run_termux_migration() {
     J3W1ZSH_MIGRATION_TEST_MODE=1 \
     J3W1ZSH_MIGRATION_TEST_PLATFORM=termux \
     J3W1ZSH_MIGRATION_REMOTE="$new_remote" \
+    J3W1ZSH_MIGRATION_TEST_FORMER_REMOTE="$old_remote" \
     PATH="$fixture_bin:$PATH" \
     "$migration" "$@"
 }
@@ -107,9 +109,23 @@ grep -q 'no state, checkout, trust record, package, Git ref, or host configurati
 [[ ! -e $dry_home/j3w1zsh ]]
 [[ ! -e $dry_home/.local/state/j3w1zsh ]]
 
-# Required partial state: only the former CLI link; regular dotfiles; no markers, helper, or host fragment.
+# An unrelated source origin fails closed before target or state mutation.
+wrong_origin_home="$test_root/wrong-origin-home"
+create_old_home "$wrong_origin_home"
+git -C "$wrong_origin_home/projects/bloody-writer" remote set-url origin https://example.invalid/unrelated.git
+set +e
+wrong_origin_output="$(run_migration "$wrong_origin_home" --target-ref "$new_oid" --expected-commit "$new_oid" \
+  --source "$wrong_origin_home/projects/bloody-writer" --dry-run 2>&1)"
+wrong_origin_result=$?
+set -e
+[[ $wrong_origin_result == 1 ]]
+grep -q 'neither the former nor renamed canonical repository' <<<"$wrong_origin_output"
+[[ ! -e $wrong_origin_home/j3w1zsh && ! -e $wrong_origin_home/.local/state/j3w1zsh ]]
+
+# Required post-rename partial state: renamed origin; only the former CLI link; regular dotfiles; no markers, helper, or host fragment.
 partial_home="$test_root/partial-home"
 create_old_home "$partial_home"
+git -C "$partial_home/projects/bloody-writer" remote set-url origin https://github.com/j3w1/j3w1zsh.git
 run_migration "$partial_home" --target-ref "$new_oid" --expected-commit "$new_oid" --source "$partial_home/projects/bloody-writer" >/dev/null
 [[ -x $partial_home/.local/bin/j3w1zsh ]]
 [[ ! -e $partial_home/.local/bin/bloody-writer && ! -L $partial_home/.local/bin/bloody-writer ]]
@@ -276,7 +292,8 @@ printf 'combined divergent and untracked bytes\n' >"$divergent_source/untracked.
 set +e
 env HOME="$divergent_home" XDG_CONFIG_HOME="$divergent_home/.config" XDG_STATE_HOME="$divergent_home/.local/state" \
   XDG_CACHE_HOME="$divergent_home/.cache" J3W1ZSH_MIGRATION_TEST_MODE=1 J3W1ZSH_MIGRATION_TEST_PLATFORM=wsl \
-  J3W1ZSH_MIGRATION_REMOTE="$new_remote" PATH="$fixture_bin:$PATH" "$migration" --target-ref "$new_oid" --expected-commit "$new_oid" \
+  J3W1ZSH_MIGRATION_REMOTE="$new_remote" J3W1ZSH_MIGRATION_TEST_FORMER_REMOTE="$divergent_remote" \
+  PATH="$fixture_bin:$PATH" "$migration" --target-ref "$new_oid" --expected-commit "$new_oid" \
   --source "$divergent_source" >/dev/null 2>&1
 divergent_result=$?
 set -e

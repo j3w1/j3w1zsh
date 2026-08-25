@@ -34,6 +34,8 @@ All notable changes to `j3w1zsh` are documented here.
   through `j3w1zsh attach`.
 - Long-form operations moved from the repository `docs/` tree into the exact compatible Wiki
   commit named by `wiki-lock.json`.
+- Legacy migration accepts both the former redirect URL and the renamed canonical repository URL
+  for the preserved source checkout while rejecting every unrelated origin before mutation.
 
 ### Removed
 

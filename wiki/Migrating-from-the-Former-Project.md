@@ -14,6 +14,8 @@ Never execute a mutable `main` URL. Download the script and checksum from the im
 
 The migration discovers complete, partial, absent, generated-drift, authored-dirty, staged, untracked, local-commit, and divergent states. It creates a mode-0700 recovery root, inventory, binary patches, untracked-byte copies, unique-ref bundle, and pre-cutover path snapshots without printing content.
 
+The preserved source checkout may still use the former repository URL or may already use the renamed canonical `j3w1/j3w1zsh` URL. Every unrelated origin is rejected before target or state mutation.
+
 Authored, staged, untracked, or unique-commit states stop with exit 21 before acquire or cutover. Exact allowlisted generated Neovim lock drift may continue only after its bytes and patch are preserved.
 
 Known settings translate to `J3W1ZSH_EDIT_ROOT`, `J3W1ZSH_GITHUB_KEY`, and generalized remote host/user/attach settings. Unknown settings stop at a manual review checkpoint and are never sourced.

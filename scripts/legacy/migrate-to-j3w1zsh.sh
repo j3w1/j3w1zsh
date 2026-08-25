@@ -142,18 +142,26 @@ migration_classify_installation() {
   fi
 }
 
+migration_source_origin_allowed() {
+  local origin="$1"
+  case "$origin" in
+  git@github.com:j3w1/bloody-writer.git | https://github.com/j3w1/bloody-writer | https://github.com/j3w1/bloody-writer.git | \
+    git@github.com:j3w1/j3w1zsh.git | https://github.com/j3w1/j3w1zsh | https://github.com/j3w1/j3w1zsh.git)
+    return 0
+    ;;
+  esac
+  [[ ${J3W1ZSH_MIGRATION_TEST_MODE:-0} == 1 && -n ${J3W1ZSH_MIGRATION_TEST_FORMER_REMOTE:-} &&
+    $origin == "$J3W1ZSH_MIGRATION_TEST_FORMER_REMOTE" ]]
+}
+
 migration_classify() {
   [[ -d $MIGRATION_SOURCE/.git ]] || migration_die "Source is not a Git checkout: $MIGRATION_SOURCE"
   migration_validate_home_path "$MIGRATION_SOURCE"
   [[ ! -e $MIGRATION_TARGET && ! -L $MIGRATION_TARGET ]] || migration_die "Target path is occupied: $MIGRATION_TARGET"
   local origin
   origin="$(git -C "$MIGRATION_SOURCE" remote get-url origin 2>/dev/null || true)"
-  if [[ ${J3W1ZSH_MIGRATION_TEST_MODE:-0} != 1 ]]; then
-    case "$origin" in
-    git@github.com:j3w1/bloody-writer.git | https://github.com/j3w1/bloody-writer | https://github.com/j3w1/bloody-writer.git) ;;
-    *) migration_die "Source origin is not the former canonical repository." ;;
-    esac
-  fi
+  migration_source_origin_allowed "$origin" ||
+    migration_die "Source origin is neither the former nor renamed canonical repository."
 
   local staged=false unstaged=false untracked=false unique=false divergent=false generated_only=false classification=exact-known
   MIGRATION_SOURCE_COMMIT="$(git -C "$MIGRATION_SOURCE" rev-parse HEAD)"
