@@ -168,7 +168,7 @@ j3w1zsh_install_command() {
     exec "$J3W1ZSH_REPO_ROOT/scripts/bootstrap-root.sh"
   fi
 
-  j3w1zsh_prepare_selection
+  j3w1zsh_prepare_selection 1
   if [[ $J3W1ZSH_DRY_RUN == 1 ]]; then
     if [[ $J3W1ZSH_OUTPUT_MODE == json ]]; then
       j3w1zsh_json_envelope install ok "$(jq -cn --arg platform "$J3W1ZSH_PLATFORM" --arg preset "$J3W1ZSH_PRESET" --arg theme "$J3W1ZSH_THEME" --arg digest "$(j3w1zsh_plan_digest)" --argjson actions "$(j3w1zsh_plan_json)" '{dry_run:true,platform:$platform,preset:$preset,theme:$theme,plan_digest:$digest,actions:$actions}')"

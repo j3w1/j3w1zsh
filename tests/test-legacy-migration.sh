@@ -7,11 +7,13 @@ trap 'rm -rf -- "$test_root"' EXIT
 migration="$repo_root/scripts/legacy/migrate-to-j3w1zsh.sh"
 fixture_bin="$test_root/bin"
 mkdir -p "$fixture_bin"
-cat >"$fixture_bin/gh" <<'EOF'
+for fixture_command in gh nvim tmux; do
+  cat >"$fixture_bin/$fixture_command" <<'EOF'
 #!/usr/bin/env bash
 exit 0
 EOF
-chmod +x "$fixture_bin/gh"
+  chmod +x "$fixture_bin/$fixture_command"
+done
 
 # Build an immutable local stand-in for the exact post-rename repository candidate.
 new_seed="$test_root/new-seed"

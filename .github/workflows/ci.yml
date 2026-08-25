@@ -27,6 +27,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Verify official native Arch surface and non-destructive fixtures
         shell: bash
+        env:
+          J3W1ZSH_TEST_EFFECTIVE_UID: "1000"
         run: |
           [[ "$(bin/j3w1zsh platform --json | jq -r .data.id)" == arch ]]
           tests/test-platform-contract.sh
