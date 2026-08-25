@@ -95,13 +95,13 @@ j3w1zsh_restore_archive() {
     esac
   done
   local staging
-  staging="$(mktemp -d "$J3W1ZSH_STATE_DIR/backups/.restore.XXXXXX")"
-  chmod 700 "$staging"
+  mkdir -p "$J3W1ZSH_STATE_DIR/backups"
+  j3w1zsh_create_ephemeral_dir staging backup-restore
   tar -C "$staging" -xzhf "$archive" --no-same-owner --no-same-permissions
   local unsafe="" link link_target resolved_link resolved_home resolved_repo
   unsafe="$(find "$staging" -mindepth 1 ! -type f ! -type d ! -type l -print -quit)"
   if [[ -n $unsafe ]]; then
-    rm -r -- "$staging"
+    j3w1zsh_cleanup_ephemeral_dir "$staging" || j3w1zsh_die "Failed to clean the guarded restore staging directory."
     j3w1zsh_die "Backup archive contains an unsupported filesystem object."
   fi
   resolved_home="$(readlink -f -- "$HOME")"
@@ -116,13 +116,13 @@ j3w1zsh_restore_archive() {
     case "$resolved_link" in
     "$resolved_home" | "$resolved_home"/* | "$resolved_repo" | "$resolved_repo"/*) ;;
     *)
-      rm -r -- "$staging"
+      j3w1zsh_cleanup_ephemeral_dir "$staging" || j3w1zsh_die "Failed to clean the guarded restore staging directory."
       j3w1zsh_die "Backup archive contains a symlink outside HOME: ${link#"$staging"/}"
       ;;
     esac
   done < <(find "$staging" -type l -print0)
   if ! j3w1zsh_confirm "Restore configuration backup $(basename -- "$archive")?"; then
-    rm -r -- "$staging"
+    j3w1zsh_cleanup_ephemeral_dir "$staging" || j3w1zsh_die "Failed to clean the guarded restore staging directory."
     return 0
   fi
   local recovery
@@ -141,7 +141,7 @@ j3w1zsh_restore_archive() {
     mkdir -p "$(dirname -- "$HOME/$top")"
     mv -- "$staging/$top" "$HOME/$top"
   done
-  rm -r -- "$staging"
+  j3w1zsh_cleanup_ephemeral_dir "$staging" || j3w1zsh_die "Failed to clean the guarded restore staging directory."
   j3w1zsh_note "Displaced pre-restore paths: $recovery"
 }
 

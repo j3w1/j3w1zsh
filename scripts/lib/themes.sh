@@ -49,8 +49,7 @@ j3w1zsh_render_theme() {
   fi
   local staging
   mkdir -p "$J3W1ZSH_CONFIG_DIR/generated"
-  staging="$(mktemp -d "$J3W1ZSH_CONFIG_DIR/generated/.theme.XXXXXX")"
-  chmod 700 "$staging"
+  j3w1zsh_create_ephemeral_dir staging theme-render
 
   local background foreground blood bright selection muted orange blue green
   background="$(j3w1zsh_theme_value .palette.background)"
@@ -97,7 +96,7 @@ EOF
   chmod 600 "$staging"/*
   [[ ! -e $output_dir.previous && ! -L $output_dir.previous ]] || rm -r -- "$output_dir.previous"
   [[ ! -e $output_dir && ! -L $output_dir ]] || mv -- "$output_dir" "$output_dir.previous"
-  mv -- "$staging" "$output_dir"
+  j3w1zsh_promote_ephemeral_dir "$staging" "$output_dir"
   [[ ! -e $output_dir.previous && ! -L $output_dir.previous ]] || rm -r -- "$output_dir.previous"
 }
 

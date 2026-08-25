@@ -33,14 +33,14 @@ j3w1zsh_git_relation() {
     counts="$(git -C "$J3W1ZSH_REPO_ROOT" rev-list --left-right --count "$local_oid...$remote_oid")"
   else
     local temporary
-    temporary="$(mktemp -d "${TMPDIR:-/tmp}/j3w1zsh-update-relation.XXXXXX")"
+    j3w1zsh_create_ephemeral_dir temporary update-relation
     git -C "$temporary" init -q
     git -C "$temporary" remote add candidate "$remote_url"
     git -C "$temporary" fetch -q candidate "$remote_ref:refs/j3w1zsh/remote"
     git -C "$temporary" remote add local "$J3W1ZSH_REPO_ROOT"
     git -C "$temporary" fetch -q local "$local_oid:refs/j3w1zsh/local"
     counts="$(git -C "$temporary" rev-list --left-right --count refs/j3w1zsh/local...refs/j3w1zsh/remote)"
-    rm -r -- "$temporary"
+    j3w1zsh_cleanup_ephemeral_dir "$temporary" || j3w1zsh_die "Failed to clean the guarded update comparison directory."
   fi
   local ahead behind
   read -r ahead behind <<<"$counts"
