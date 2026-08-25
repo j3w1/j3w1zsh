@@ -131,6 +131,28 @@ exit "$result"
 EOF
 chmod +x "$instrumented_bin/git"
 
+# Doctor's repository-health check is deliberately local-only. Any accidental network Git
+# operation fails this fixture and leaves a durable call log for diagnosis.
+doctor_git_bin="$test_root/doctor-git-bin"
+doctor_network_log="$test_root/doctor-network.log"
+mkdir -p "$doctor_git_bin"
+cat >"$doctor_git_bin/git" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+: "${J3W1ZSH_TEST_REAL_GIT:?}"
+for argument in "$@"; do
+  case "$argument" in
+  fetch | ls-remote | pull | push)
+    printf '%s\n' "$*" >>"$J3W1ZSH_TEST_DOCTOR_NETWORK_LOG"
+    exit 97
+    ;;
+  esac
+done
+exec "$J3W1ZSH_TEST_REAL_GIT" "$@"
+EOF
+chmod +x "$doctor_git_bin/git"
+
 # Dry-run resolves the exact OID through a disposable temp Git repository and creates no state.
 # It must clean fetched mode-0444 pack/object files without prompting or reading confirmation,
 # both without a terminal and with a pseudo-terminal attached to stdin.
@@ -180,6 +202,14 @@ awk 'NF != 2 || $1 < 1 || $2 != 1 { exit 1 } END { if (NR != 2) exit 1 }' "$dry_
 [[ ! -e $dry_home/j3w1zsh ]]
 [[ ! -e $dry_home/.local/state/j3w1zsh ]]
 
+# Canonical main may advance after an exact migration target is published. Acquisition must
+# preserve the exact requested checkout while materializing the observed full-history upstream.
+printf 'canonical main advanced after candidate publication\n' >"$new_seed/tracking-advanced-marker.txt"
+git -C "$new_seed" add tracking-advanced-marker.txt
+git -C "$new_seed" commit -q -m 'fixture: advance canonical main'
+new_main_oid="$(git -C "$new_seed" rev-parse HEAD)"
+git -C "$new_seed" push -q "$new_remote" main
+
 # An unrelated source origin fails closed before target or state mutation.
 wrong_origin_home="$test_root/wrong-origin-home"
 create_old_home "$wrong_origin_home"
@@ -203,6 +233,22 @@ run_migration "$partial_home" --target-ref "$new_oid" --expected-commit "$new_oi
 [[ -L $partial_home/.zshrc && -L $partial_home/.tmux.conf && -L $partial_home/.config/nvim ]]
 [[ -d $partial_home/j3w1zsh/.git ]]
 [[ ! -e $partial_home/projects/bloody-writer ]]
+partial_status="$(git -C "$partial_home/j3w1zsh" status --short --branch | head -n1)"
+[[ $partial_status != *'[gone]'* ]]
+[[ $(git -C "$partial_home/j3w1zsh" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}') == origin/main ]]
+[[ $(git -C "$partial_home/j3w1zsh" rev-parse '@{upstream}') == "$new_main_oid" ]]
+[[ $(git -C "$partial_home/j3w1zsh" rev-parse --verify refs/remotes/origin/main) == "$new_main_oid" ]]
+[[ $(git -C "$partial_home/j3w1zsh" rev-parse --is-shallow-repository) == false ]]
+partial_refs_before="$(git -C "$partial_home/j3w1zsh" show-ref)"
+partial_update_json="$(env HOME="$partial_home" XDG_CONFIG_HOME="$partial_home/.config" XDG_STATE_HOME="$partial_home/.local/state" \
+  XDG_CACHE_HOME="$partial_home/.cache" J3W1ZSH_TEST_MODE=1 J3W1ZSH_TEST_PLATFORM=wsl \
+  J3W1ZSH_TEST_CANONICAL_URL="$new_remote" "$partial_home/j3w1zsh/bin/j3w1zsh" update --dry-run --json)"
+jq -e --arg current "$new_oid" --arg upstream "$new_main_oid" \
+  '.status == "ok" and .data.dry_run == true and .data.local_refs_changed == false and
+   .data.repository.tracking_ref == "origin/main" and .data.tracking_relation.local_oid == $current and
+   .data.tracking_relation.remote_oid == $upstream and .data.tracking_relation.ahead == 0 and .data.tracking_relation.behind == 1' \
+  <<<"$partial_update_json" >/dev/null
+[[ $(git -C "$partial_home/j3w1zsh" show-ref) == "$partial_refs_before" ]]
 recovery="$(find "$partial_home/.local/state/j3w1zsh/migrations" -mindepth 1 -maxdepth 1 -type d | head -n1)"
 jq -e '.phase == "finalize" and .status == "complete"' "$recovery/journal.json" >/dev/null
 jq -e '.classification == "exact-known" and .installation_state == "partial" and .git.staged == false and .git.untracked == false and (.git.source_commit | length == 40) and any(.plausible_sources[]; .path == $source and .git_checkout == true)' \
@@ -336,6 +382,160 @@ grep -q '^export J3W1ZSH_REMOTE_ATTACH_COMMAND=' "$termux_home/.config/j3w1zsh/s
 env HOME="$termux_home" XDG_CONFIG_HOME="$termux_home/.config" XDG_STATE_HOME="$termux_home/.local/state" \
   J3W1ZSH_TEST_MODE=1 J3W1ZSH_TEST_PLATFORM=termux "$termux_home/j3w1zsh/bin/j3w1zsh" platform --json |
   jq -e '.data.id == "termux"' >/dev/null
+[[ $(git -C "$termux_home/j3w1zsh" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}') == origin/main ]]
+[[ $(git -C "$termux_home/j3w1zsh" rev-parse --verify refs/remotes/origin/main) == "$new_main_oid" ]]
+[[ $(git -C "$termux_home/j3w1zsh" rev-parse --is-shallow-repository) == false ]]
+
+# Reproduce the first real WSL result exactly: clean local main at the exact candidate, branch
+# configuration pointing to origin/main, a shallow object store, and no remote-tracking ref.
+tracking_home="$test_root/tracking-home"
+tracking_target="$tracking_home/j3w1zsh"
+tracking_tmp="$test_root/tracking-tmp"
+mkdir -p "$tracking_target" "$tracking_tmp" "$tracking_home/.config/j3w1zsh" \
+  "$tracking_home/.local/state/j3w1zsh/phases" "$tracking_home/.local/state/j3w1zsh/packages" \
+  "$tracking_home/.local/state/j3w1zsh/migrations/recovery-one" \
+  "$tracking_home/.local/state/j3w1zsh/migrations/recovery-two"
+git -C "$tracking_target" init -q
+git -C "$tracking_target" remote add origin "$new_remote"
+git -C "$tracking_target" fetch -q --depth=1 origin "$new_oid"
+git -C "$tracking_target" checkout -q -B main FETCH_HEAD
+git -C "$tracking_target" config branch.main.remote origin
+git -C "$tracking_target" config branch.main.merge refs/heads/main
+printf '{"schema_version":1,"additions":{},"exclusions":{}}\n' >"$tracking_home/.config/j3w1zsh/packages.json"
+printf '{"fixture":"package-ledger"}\n' >"$tracking_home/.local/state/j3w1zsh/packages/ledger.json"
+printf 'preserve first recovery\n' >"$tracking_home/.local/state/j3w1zsh/migrations/recovery-one/sentinel"
+printf 'preserve completed recovery\n' >"$tracking_home/.local/state/j3w1zsh/migrations/recovery-two/sentinel"
+jq -n '{preset:"j3w1",preset_source:"j3w1",theme:"j3w1zsh",theme_source:"j3w1zsh",no_packages:true,packages_only:false}' \
+  >"$tracking_home/.local/state/j3w1zsh/phases/00-preflight.json"
+[[ $(git -C "$tracking_target" rev-parse HEAD) == "$new_oid" ]]
+[[ $(git -C "$tracking_target" rev-parse --is-shallow-repository) == true ]]
+[[ -z $(git -C "$tracking_target" rev-parse --verify refs/remotes/origin/main 2>/dev/null || true) ]]
+grep -q '\[gone\]' < <(git -C "$tracking_target" status --short --branch)
+
+tracking_head_before="$(git -C "$tracking_target" rev-parse HEAD)"
+tracking_tree_before="$(git -C "$tracking_target" rev-parse 'HEAD^{tree}')"
+tracking_config_before="$(git -C "$tracking_target" config --local --null --list | sha256sum | awk '{print $1}')"
+tracking_refs_before="$(git -C "$tracking_target" for-each-ref --format='%(refname) %(objectname)')"
+tracking_user_state_before="$(find "$tracking_home/.config/j3w1zsh" "$tracking_home/.local/state/j3w1zsh" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
+
+set +e
+tracking_update_before="$(env HOME="$tracking_home" XDG_CONFIG_HOME="$tracking_home/.config" XDG_STATE_HOME="$tracking_home/.local/state" \
+  XDG_CACHE_HOME="$tracking_home/.cache" J3W1ZSH_TEST_MODE=1 J3W1ZSH_TEST_PLATFORM=wsl \
+  J3W1ZSH_TEST_CANONICAL_URL="$new_remote" PATH="$fixture_bin:$PATH" "$tracking_target/bin/j3w1zsh" update --dry-run --json 2>&1)"
+tracking_update_before_result=$?
+set -e
+[[ $tracking_update_before_result == 21 ]]
+jq -e '.status == "error" and .error.code == "missing_upstream"' <<<"$tracking_update_before" >/dev/null
+[[ $(git -C "$tracking_target" for-each-ref --format='%(refname) %(objectname)') == "$tracking_refs_before" ]]
+
+set +e
+tracking_doctor_before="$(env HOME="$tracking_home" XDG_CONFIG_HOME="$tracking_home/.config" XDG_STATE_HOME="$tracking_home/.local/state" \
+  XDG_CACHE_HOME="$tracking_home/.cache" J3W1ZSH_TEST_MODE=1 J3W1ZSH_TEST_PLATFORM=wsl \
+  J3W1ZSH_TEST_REAL_GIT="$real_git" J3W1ZSH_TEST_DOCTOR_NETWORK_LOG="$doctor_network_log" PATH="$doctor_git_bin:$fixture_bin:$PATH" \
+  "$tracking_target/bin/j3w1zsh" doctor --json)"
+tracking_doctor_before_result=$?
+set -e
+[[ $tracking_doctor_before_result == 1 ]]
+jq -e '.status == "error" and any(.data.checks[]; .name == "git-upstream" and .ok == false)' <<<"$tracking_doctor_before" >/dev/null
+[[ ! -e $doctor_network_log ]]
+
+tracking_protect_log="$test_root/tracking-write-protected.log"
+tracking_dry_output="$test_root/tracking-repair-dry.out"
+timeout 20s env HOME="$tracking_home" XDG_CONFIG_HOME="$tracking_home/.config" XDG_STATE_HOME="$tracking_home/.local/state" \
+  XDG_CACHE_HOME="$tracking_home/.cache" TMPDIR="$tracking_tmp" J3W1ZSH_MIGRATION_TEST_MODE=1 \
+  J3W1ZSH_MIGRATION_REMOTE="$new_remote" J3W1ZSH_TEST_REAL_GIT="$real_git" J3W1ZSH_TEST_WRITE_PROTECT_FETCH=1 \
+  J3W1ZSH_TEST_WRITE_PROTECT_LOG="$tracking_protect_log" PATH="$instrumented_bin:$fixture_bin:$PATH" \
+  "$tracking_target/scripts/legacy/migrate-to-j3w1zsh.sh" --repair-tracking --target "$tracking_target" \
+  --expected-commit "$new_oid" --expected-upstream-commit "$new_main_oid" --dry-run </dev/null >"$tracking_dry_output"
+grep -q 'origin/main: missing' "$tracking_dry_output"
+grep -q 'local refs, recovery data, packages, and user configuration were unchanged' "$tracking_dry_output"
+if grep -q 'remove write-protected' "$tracking_dry_output"; then
+  printf 'Tracking-repair cleanup prompted for write-protected Git objects.\n' >&2
+  exit 1
+fi
+awk 'NF != 2 || $1 < 1 { exit 1 } END { if (NR != 1) exit 1 }' "$tracking_protect_log"
+[[ -z $(find "$tracking_tmp" -mindepth 1 -maxdepth 1 -name 'j3w1zsh-migration-tracking.*' -print -quit) ]]
+[[ $(git -C "$tracking_target" rev-parse HEAD) == "$tracking_head_before" ]]
+[[ $(git -C "$tracking_target" rev-parse 'HEAD^{tree}') == "$tracking_tree_before" ]]
+[[ $(git -C "$tracking_target" config --local --null --list | sha256sum | awk '{print $1}') == "$tracking_config_before" ]]
+[[ $(git -C "$tracking_target" for-each-ref --format='%(refname) %(objectname)') == "$tracking_refs_before" ]]
+[[ $(find "$tracking_home/.config/j3w1zsh" "$tracking_home/.local/state/j3w1zsh" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}') == "$tracking_user_state_before" ]]
+
+env HOME="$tracking_home" XDG_CONFIG_HOME="$tracking_home/.config" XDG_STATE_HOME="$tracking_home/.local/state" \
+  XDG_CACHE_HOME="$tracking_home/.cache" J3W1ZSH_MIGRATION_TEST_MODE=1 J3W1ZSH_MIGRATION_REMOTE="$new_remote" \
+  PATH="$fixture_bin:$PATH" "$tracking_target/scripts/legacy/migrate-to-j3w1zsh.sh" --repair-tracking \
+  --target "$tracking_target" --expected-commit "$new_oid" --expected-upstream-commit "$new_main_oid" >/dev/null
+[[ $(git -C "$tracking_target" rev-parse HEAD) == "$tracking_head_before" ]]
+[[ $(git -C "$tracking_target" rev-parse 'HEAD^{tree}') == "$tracking_tree_before" ]]
+[[ $(git -C "$tracking_target" config --local --null --list | sha256sum | awk '{print $1}') == "$tracking_config_before" ]]
+[[ $(find "$tracking_home/.config/j3w1zsh" "$tracking_home/.local/state/j3w1zsh" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}') == "$tracking_user_state_before" ]]
+[[ $(git -C "$tracking_target" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}') == origin/main ]]
+[[ $(git -C "$tracking_target" rev-parse '@{upstream}') == "$new_main_oid" ]]
+[[ $(git -C "$tracking_target" rev-parse --verify refs/remotes/origin/main) == "$new_main_oid" ]]
+[[ $(git -C "$tracking_target" rev-parse --is-shallow-repository) == false ]]
+if git -C "$tracking_target" status --short --branch | grep -q '\[gone\]'; then
+  printf 'Tracking repair left origin/main unresolved.\n' >&2
+  exit 1
+fi
+
+tracking_refs_repaired="$(git -C "$tracking_target" show-ref)"
+tracking_state_repaired="$(find "$tracking_home/.config/j3w1zsh" "$tracking_home/.local/state/j3w1zsh" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
+tracking_update_human="$(env HOME="$tracking_home" XDG_CONFIG_HOME="$tracking_home/.config" XDG_STATE_HOME="$tracking_home/.local/state" \
+  XDG_CACHE_HOME="$tracking_home/.cache" J3W1ZSH_TEST_MODE=1 J3W1ZSH_TEST_PLATFORM=wsl \
+  J3W1ZSH_TEST_CANONICAL_URL="$new_remote" PATH="$fixture_bin:$PATH" "$tracking_target/bin/j3w1zsh" update --dry-run)"
+grep -q 'Branch/upstream: main -> origin/main' <<<"$tracking_update_human"
+[[ $(git -C "$tracking_target" show-ref) == "$tracking_refs_repaired" ]]
+tracking_update_json="$(env HOME="$tracking_home" XDG_CONFIG_HOME="$tracking_home/.config" XDG_STATE_HOME="$tracking_home/.local/state" \
+  XDG_CACHE_HOME="$tracking_home/.cache" J3W1ZSH_TEST_MODE=1 J3W1ZSH_TEST_PLATFORM=wsl \
+  J3W1ZSH_TEST_CANONICAL_URL="$new_remote" PATH="$fixture_bin:$PATH" "$tracking_target/bin/j3w1zsh" update --dry-run --json)"
+jq -e --arg current "$new_oid" --arg upstream "$new_main_oid" \
+  '.status == "ok" and .data.dry_run == true and .data.local_refs_changed == false and
+   .data.tracking_relation.local_oid == $current and .data.tracking_relation.remote_oid == $upstream and
+   .data.tracking_relation.ahead == 0 and .data.tracking_relation.behind == 1' <<<"$tracking_update_json" >/dev/null
+[[ $(git -C "$tracking_target" show-ref) == "$tracking_refs_repaired" ]]
+[[ $(find "$tracking_home/.config/j3w1zsh" "$tracking_home/.local/state/j3w1zsh" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}') == "$tracking_state_repaired" ]]
+
+env HOME="$tracking_home" XDG_CONFIG_HOME="$tracking_home/.config" XDG_STATE_HOME="$tracking_home/.local/state" \
+  XDG_CACHE_HOME="$tracking_home/.cache" J3W1ZSH_TEST_MODE=1 J3W1ZSH_TEST_PLATFORM=wsl \
+  J3W1ZSH_TEST_CANONICAL_URL="$new_remote" PATH="$fixture_bin:$PATH" "$tracking_target/bin/j3w1zsh" update --yes >/dev/null
+[[ $(git -C "$tracking_target" rev-parse HEAD) == "$new_main_oid" ]]
+[[ -f $tracking_target/tracking-advanced-marker.txt ]]
+if git -C "$tracking_target" status --short --branch | grep -q '\[gone\]'; then
+  printf 'Normal fast-forward update left origin/main unresolved.\n' >&2
+  exit 1
+fi
+env HOME="$tracking_home" XDG_CONFIG_HOME="$tracking_home/.config" XDG_STATE_HOME="$tracking_home/.local/state" \
+  XDG_CACHE_HOME="$tracking_home/.cache" J3W1ZSH_TEST_MODE=1 J3W1ZSH_TEST_PLATFORM=wsl \
+  J3W1ZSH_TEST_REAL_GIT="$real_git" J3W1ZSH_TEST_DOCTOR_NETWORK_LOG="$doctor_network_log" PATH="$doctor_git_bin:$fixture_bin:$PATH" \
+  "$tracking_target/bin/j3w1zsh" doctor --json | jq -e '.status == "ok" and any(.data.checks[]; .name == "git-upstream" and .ok == true)' >/dev/null
+[[ ! -e $doctor_network_log ]]
+
+# A clean unique/divergent local commit is never converted into canonical tracking history.
+protected_tracking="$tracking_home/protected-tracking"
+mkdir -p "$protected_tracking"
+git -C "$protected_tracking" init -q
+git -C "$protected_tracking" remote add origin "$new_remote"
+git -C "$protected_tracking" fetch -q --depth=1 origin "$new_oid"
+git -C "$protected_tracking" checkout -q -B main FETCH_HEAD
+git -C "$protected_tracking" config branch.main.remote origin
+git -C "$protected_tracking" config branch.main.merge refs/heads/main
+git -C "$protected_tracking" config user.name 'Migration Tests'
+git -C "$protected_tracking" config user.email 'tests@example.invalid'
+printf 'unique local history\n' >"$protected_tracking/unique.txt"
+git -C "$protected_tracking" add unique.txt
+git -C "$protected_tracking" commit -q -m 'fixture: unique tracking history'
+protected_tracking_head="$(git -C "$protected_tracking" rev-parse HEAD)"
+protected_tracking_refs="$(git -C "$protected_tracking" show-ref)"
+set +e
+env HOME="$tracking_home" J3W1ZSH_MIGRATION_TEST_MODE=1 J3W1ZSH_MIGRATION_REMOTE="$new_remote" \
+  "$protected_tracking/scripts/legacy/migrate-to-j3w1zsh.sh" --repair-tracking --target "$protected_tracking" \
+  --expected-commit "$protected_tracking_head" --expected-upstream-commit "$new_main_oid" >/dev/null 2>&1
+protected_tracking_result=$?
+set -e
+[[ $protected_tracking_result == 21 ]]
+[[ $(git -C "$protected_tracking" rev-parse HEAD) == "$protected_tracking_head" ]]
+[[ $(git -C "$protected_tracking" show-ref) == "$protected_tracking_refs" ]]
+[[ -z $(git -C "$protected_tracking" rev-parse --verify refs/remotes/origin/main 2>/dev/null || true) ]]
 
 assert_protected() {
   local kind="$1"

@@ -15,3 +15,5 @@ When a host restart is required, state is persisted and the installer exits 20 w
 The Windows Terminal adapter uses a fragment instead of rewriting `settings.json`. Migration preserves a discovered existing profile GUID and updates the lowercase profile in place to avoid duplicates.
 
 Do not copy Windows credentials into WSL. GitHub and Codex authentication remain interactive and user-owned.
+
+A package-free migration intentionally leaves phase `70-codex` unselected. After the corrected checkout/upstream and normal update are verified, real-device acceptance separately runs `command -v codex` and `codex --version`; the migration does not infer Codex health from a preserved authentication session.

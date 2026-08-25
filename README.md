@@ -99,7 +99,9 @@ The standalone `scripts/legacy/migrate-to-j3w1zsh.sh` handles complete or partia
 installations. It requires an immutable target ref plus its exact 40-character commit, journals
 recovery, stops before cutover on authored or unique work, and keeps rollback rerunnable. Read
 [Migrating from the Former Project](https://github.com/j3w1/j3w1zsh/wiki/Migrating-from-the-Former-Project)
-before using it.
+before using it. Fresh acquisition preserves that exact target while establishing a full-history,
+resolvable `origin/main`; the same bootstrap contains a guarded repair for the known shallow
+`[gone]` state without rolling back or replacing a successful installation.
 
 ## Documentation and screenshots
 

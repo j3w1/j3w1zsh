@@ -4,11 +4,17 @@ j3w1zsh_wiki_publish_execute() {
   local url="$1" work="$2"
   j3w1zsh_wiki_git clone -q "$url" "$work"
   [[ -z $(git -C "$work" status --short) ]] || j3w1zsh_die "Fresh Wiki checkout is unexpectedly dirty."
-  local unexpected file page
+  local unexpected file page allowed
   unexpected="$(find "$work" -mindepth 1 -maxdepth 1 ! -name .git -printf '%f\n' | while IFS= read -r file; do
     if [[ -f $work/$file && ! -L $work/$file && $file == *.md ]]; then
-      page="${file%.md}"; page="${page//-/ }"
-      jq -e --arg page "$page" '.required_pages | index($page)' "$(j3w1zsh_wiki_lock_file)" >/dev/null && continue
+      allowed=false
+      while IFS= read -r page; do
+        if [[ $file == "$(j3w1zsh_wiki_page_file "$page")" ]]; then
+          allowed=true
+          break
+        fi
+      done < <(jq -r '.required_pages[]' "$(j3w1zsh_wiki_lock_file)")
+      [[ $allowed == true ]] && continue
     fi
     printf '%s\n' "$file"
   done)"

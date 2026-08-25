@@ -10,6 +10,8 @@ Use `j3w1zsh help`, `j3w1zsh help edit`, or `j3w1zsh help remote`. Global output
 
 `--json` emits one envelope with `schema_version`, `command`, `status`, and `data`. Errors add a stable error code. JSON and plain output never include ANSI or a human banner.
 
+`doctor` checks required binaries plus the locally resolvable Git upstream. The upstream check makes no network request; use `update --dry-run` for current remote relation evidence.
+
 ## Command families
 
 - Installation: `install`, `plan`, `status`, `doctor`, `platform`, `reset-phase`.

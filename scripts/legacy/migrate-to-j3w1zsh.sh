@@ -12,6 +12,8 @@ migration_usage() {
   cat <<'EOF'
 Usage:
   migrate-to-j3w1zsh.sh --target-ref REF --expected-commit 40_HEX_OID [--source PATH] [--dry-run]
+  migrate-to-j3w1zsh.sh --repair-tracking --expected-commit CURRENT_40_HEX_OID \
+    --expected-upstream-commit UPSTREAM_40_HEX_OID [--target PATH] [--dry-run]
   migrate-to-j3w1zsh.sh --resume
   migrate-to-j3w1zsh.sh --rollback
   migrate-to-j3w1zsh.sh --status
@@ -43,6 +45,9 @@ migration_ephemeral_parent() {
     [[ -n ${MIGRATION_RECOVERY_ROOT:-} ]] || return 1
     printf '%s\n' "$MIGRATION_RECOVERY_ROOT"
     ;;
+  tracking-compare)
+    printf '%s\n' "${TMPDIR:-/tmp}"
+    ;;
   *)
     return 1
     ;;
@@ -52,7 +57,8 @@ migration_ephemeral_parent() {
 migration_ephemeral_basename_allowed() {
   local kind="$1" name="$2"
   case "$kind:$name" in
-  resolve:j3w1zsh-migration-resolve.?????? | workspace-compare:.workspace-compare.??????) return 0 ;;
+  resolve:j3w1zsh-migration-resolve.?????? | workspace-compare:.workspace-compare.?????? | \
+    tracking-compare:j3w1zsh-migration-tracking.??????) return 0 ;;
   *) return 1 ;;
   esac
 }
@@ -68,6 +74,7 @@ migration_create_ephemeral_dir() {
   case "$kind" in
   resolve) prefix='j3w1zsh-migration-resolve' ;;
   workspace-compare) prefix='.workspace-compare' ;;
+  tracking-compare) prefix='j3w1zsh-migration-tracking' ;;
   esac
   created="$(mktemp -d -- "$resolved_parent/$prefix.XXXXXX")"
   resolved_created="$(readlink -m -- "$created")"
@@ -134,6 +141,112 @@ migration_validate_home_path() {
   "$resolved_home" | "$resolved_home"/*) ;;
   *) migration_die "Path escapes HOME through an ancestor or symlink: $path" ;;
   esac
+}
+
+migration_remote_main_oid() {
+  local advertised count oid
+  advertised="$(git ls-remote --refs "$MIGRATION_REMOTE" refs/heads/main)" ||
+    migration_die "Canonical main is unreachable."
+  count="$(awk 'NF == 2 { count += 1 } END { print count + 0 }' <<<"$advertised")"
+  [[ $count == 1 ]] || migration_die "Canonical main did not resolve to exactly one ref."
+  oid="$(awk 'NF == 2 { print $1 }' <<<"$advertised")"
+  [[ $oid =~ ^[0-9a-f]{40}$ ]] || migration_die "Canonical main did not resolve to a full commit OID."
+  printf '%s\n' "$oid"
+}
+
+migration_remote_contains_commit() {
+  local current_oid="$1" upstream_oid="$2" comparison
+  migration_create_ephemeral_dir comparison tracking-compare
+  if ! git -C "$comparison" init -q ||
+    ! git -C "$comparison" remote add canonical "$MIGRATION_REMOTE" ||
+    ! git -C "$comparison" fetch -q --no-tags canonical "$upstream_oid:refs/j3w1zsh/upstream"; then
+    migration_cleanup_ephemeral_dir "$comparison" || migration_die "Failed to clean the guarded tracking comparison directory."
+    migration_die "Expected canonical-main commit is not fetchable: $upstream_oid"
+  fi
+  if ! git -C "$comparison" cat-file -e "$current_oid^{commit}" 2>/dev/null ||
+    ! git -C "$comparison" merge-base --is-ancestor "$current_oid" refs/j3w1zsh/upstream; then
+    migration_cleanup_ephemeral_dir "$comparison" || migration_die "Failed to clean the guarded tracking comparison directory."
+    return 1
+  fi
+  migration_cleanup_ephemeral_dir "$comparison" || migration_die "Failed to clean the guarded tracking comparison directory."
+}
+
+migration_fetch_tracking_ref() {
+  local target="$1" upstream_oid="$2"
+  if [[ $(git -C "$target" rev-parse --is-shallow-repository) == true ]]; then
+    git -C "$target" fetch --no-tags --unshallow origin "$upstream_oid:refs/remotes/origin/main"
+  else
+    git -C "$target" fetch --no-tags origin "$upstream_oid:refs/remotes/origin/main"
+  fi
+}
+
+migration_repair_tracking() {
+  [[ $MIGRATION_EXPECTED_COMMIT =~ ^[0-9a-f]{40}$ ]] ||
+    migration_die "--expected-commit must be the current full 40-hex checkout OID." "$MIGRATION_EXIT_USAGE"
+  [[ $MIGRATION_EXPECTED_UPSTREAM_COMMIT =~ ^[0-9a-f]{40}$ ]] ||
+    migration_die "--expected-upstream-commit must be the full 40-hex canonical-main OID." "$MIGRATION_EXIT_USAGE"
+  [[ -d $MIGRATION_TARGET/.git && ! -L $MIGRATION_TARGET ]] ||
+    migration_die "Tracking recovery requires a regular Git checkout: $MIGRATION_TARGET"
+
+  local head branch origin configured_remote configured_merge checkout_status existing_ref remote_main
+  local config_digest_before config_digest_after upstream status_line
+  head="$(git -C "$MIGRATION_TARGET" rev-parse HEAD)"
+  [[ $head == "$MIGRATION_EXPECTED_COMMIT" ]] ||
+    migration_die "Checkout HEAD is $head, not the expected preserved commit $MIGRATION_EXPECTED_COMMIT." "$MIGRATION_EXIT_PROTECTED"
+  branch="$(git -C "$MIGRATION_TARGET" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+  [[ $branch == main ]] || migration_die "Tracking recovery requires the local main branch." "$MIGRATION_EXIT_PROTECTED"
+  origin="$(git -C "$MIGRATION_TARGET" remote get-url origin 2>/dev/null || true)"
+  [[ $origin == "$MIGRATION_REMOTE" ]] ||
+    migration_die "Tracking recovery requires the exact canonical origin: $MIGRATION_REMOTE" "$MIGRATION_EXIT_PROTECTED"
+  configured_remote="$(git -C "$MIGRATION_TARGET" config --get branch.main.remote 2>/dev/null || true)"
+  configured_merge="$(git -C "$MIGRATION_TARGET" config --get branch.main.merge 2>/dev/null || true)"
+  [[ $configured_remote == origin && $configured_merge == refs/heads/main ]] ||
+    migration_die "Tracking recovery refuses to rewrite unexpected branch configuration." "$MIGRATION_EXIT_PROTECTED"
+  checkout_status="$(git -C "$MIGRATION_TARGET" status --short --untracked-files=all)"
+  [[ -z $checkout_status ]] ||
+    migration_die "Tracking recovery preserves authored, staged, deleted, renamed, and untracked checkout state." "$MIGRATION_EXIT_PROTECTED"
+
+  existing_ref="$(git -C "$MIGRATION_TARGET" rev-parse --verify refs/remotes/origin/main 2>/dev/null || true)"
+  [[ -z $existing_ref || $existing_ref == "$MIGRATION_EXPECTED_UPSTREAM_COMMIT" ]] ||
+    migration_die "Existing origin/main differs from the exact expected upstream commit." "$MIGRATION_EXIT_PROTECTED"
+  remote_main="$(migration_remote_main_oid)"
+  [[ $remote_main == "$MIGRATION_EXPECTED_UPSTREAM_COMMIT" ]] ||
+    migration_die "Canonical main is $remote_main, not the expected recovery commit $MIGRATION_EXPECTED_UPSTREAM_COMMIT."
+  migration_remote_contains_commit "$MIGRATION_EXPECTED_COMMIT" "$MIGRATION_EXPECTED_UPSTREAM_COMMIT" ||
+    migration_die "The preserved checkout commit is not an ancestor of the expected canonical main; unique or divergent history is protected." "$MIGRATION_EXIT_PROTECTED"
+
+  if [[ $MIGRATION_DRY_RUN == 1 ]]; then
+    printf 'Tracking recovery plan\n'
+    printf '  checkout: %s\n  current commit: %s\n  canonical main: %s\n' \
+      "$MIGRATION_TARGET" "$MIGRATION_EXPECTED_COMMIT" "$MIGRATION_EXPECTED_UPSTREAM_COMMIT"
+    printf '  origin/main: %s\n' "$([[ -n $existing_ref ]] && printf present || printf missing)"
+    printf 'Dry run complete; HEAD, checkout files, branch config, local refs, recovery data, packages, and user configuration were unchanged.\n'
+    return 0
+  fi
+
+  config_digest_before="$(git -C "$MIGRATION_TARGET" config --local --null --list | sha256sum | awk '{print $1}')"
+  if [[ -z $existing_ref || $(git -C "$MIGRATION_TARGET" rev-parse --is-shallow-repository) == true ]]; then
+    migration_fetch_tracking_ref "$MIGRATION_TARGET" "$MIGRATION_EXPECTED_UPSTREAM_COMMIT" ||
+      migration_die "Tracking recovery could not fetch the exact canonical-main history."
+  fi
+  [[ $(git -C "$MIGRATION_TARGET" rev-parse HEAD) == "$MIGRATION_EXPECTED_COMMIT" ]] ||
+    migration_die "Tracking recovery changed HEAD unexpectedly." "$MIGRATION_EXIT_PROTECTED"
+  [[ $(git -C "$MIGRATION_TARGET" rev-parse --verify refs/remotes/origin/main) == "$MIGRATION_EXPECTED_UPSTREAM_COMMIT" ]] ||
+    migration_die "Tracking recovery did not establish the exact canonical-main ref."
+  upstream="$(git -C "$MIGRATION_TARGET" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
+  [[ $upstream == origin/main ]] || migration_die "Tracking recovery did not establish origin/main as the resolvable upstream."
+  [[ $(git -C "$MIGRATION_TARGET" rev-parse --is-shallow-repository) == false ]] ||
+    migration_die "Tracking recovery did not restore the full history required for safe relation checks."
+  config_digest_after="$(git -C "$MIGRATION_TARGET" config --local --null --list | sha256sum | awk '{print $1}')"
+  [[ $config_digest_after == "$config_digest_before" ]] ||
+    migration_die "Tracking recovery changed branch or remote configuration unexpectedly." "$MIGRATION_EXIT_PROTECTED"
+  [[ -z $(git -C "$MIGRATION_TARGET" status --short --untracked-files=all) ]] ||
+    migration_die "Tracking recovery changed checkout files unexpectedly." "$MIGRATION_EXIT_PROTECTED"
+  status_line="$(git -C "$MIGRATION_TARGET" status --short --branch | head -n1)"
+  [[ $status_line != *'[gone]'* ]] || migration_die "Tracking recovery left the upstream unresolved."
+  printf 'Tracking recovery completed without changing HEAD or checkout files.\n'
+  printf '  checkout: %s\n  upstream: origin/main\n  canonical main: %s\n' \
+    "$MIGRATION_TARGET" "$MIGRATION_EXPECTED_UPSTREAM_COMMIT"
 }
 
 migration_timestamp() {
@@ -367,7 +480,7 @@ migration_resolve_dry_run() {
 
 migration_acquire() {
   migration_log "Acquiring exact j3w1zsh commit $MIGRATION_EXPECTED_COMMIT."
-  local available_kib
+  local available_kib canonical_main upstream status_line
   available_kib="$(df -Pk "$HOME" | awk 'NR==2 {print $4}')"
   [[ $available_kib =~ ^[0-9]+$ && $available_kib -ge 20480 ]] || migration_die "At least 20 MiB of free home storage is required."
   mkdir -p "$MIGRATION_TARGET"
@@ -379,13 +492,25 @@ migration_acquire() {
   else
     git -C "$MIGRATION_TARGET" remote add origin "$MIGRATION_REMOTE"
   fi
-  git -C "$MIGRATION_TARGET" fetch --depth=1 origin "$MIGRATION_TARGET_REF"
+  git -C "$MIGRATION_TARGET" fetch --no-tags origin "$MIGRATION_TARGET_REF"
   local resolved
   resolved="$(git -C "$MIGRATION_TARGET" rev-parse FETCH_HEAD)"
   [[ $resolved == "$MIGRATION_EXPECTED_COMMIT" ]] || migration_die "Fetched target resolved to $resolved, not $MIGRATION_EXPECTED_COMMIT."
+  canonical_main="$(migration_remote_main_oid)"
+  git -C "$MIGRATION_TARGET" fetch --no-tags origin "$canonical_main:refs/remotes/origin/main"
+  [[ $(git -C "$MIGRATION_TARGET" rev-parse --verify refs/remotes/origin/main) == "$canonical_main" ]] ||
+    migration_die "Acquisition did not materialize the exact observed canonical-main ref."
+  git -C "$MIGRATION_TARGET" merge-base --is-ancestor "$resolved" "$canonical_main" ||
+    migration_die "The exact migration target is not an ancestor of canonical main; acquisition stopped before checkout." "$MIGRATION_EXIT_PROTECTED"
   git -C "$MIGRATION_TARGET" checkout -q -B main "$resolved"
   git -C "$MIGRATION_TARGET" config branch.main.remote origin
   git -C "$MIGRATION_TARGET" config branch.main.merge refs/heads/main
+  upstream="$(git -C "$MIGRATION_TARGET" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
+  [[ $upstream == origin/main ]] || migration_die "Acquired main does not resolve its exact origin/main upstream."
+  [[ $(git -C "$MIGRATION_TARGET" rev-parse --is-shallow-repository) == false ]] ||
+    migration_die "Acquisition left a shallow checkout that cannot safely classify future updates."
+  status_line="$(git -C "$MIGRATION_TARGET" status --short --branch | head -n1)"
+  [[ $status_line != *'[gone]'* ]] || migration_die "Acquired main reports an unresolved upstream."
   [[ -z $(git -C "$MIGRATION_TARGET" status --short) ]] || migration_die "Acquired checkout is not clean."
   migration_write_journal acquire complete
 }
@@ -753,15 +878,20 @@ migration_resume() {
 
 MIGRATION_TARGET_REF=""
 MIGRATION_EXPECTED_COMMIT=""
+MIGRATION_EXPECTED_UPSTREAM_COMMIT=""
 MIGRATION_SOURCE=""
+MIGRATION_TARGET_ARGUMENT=""
 MIGRATION_DRY_RUN=0
 MIGRATION_MODE=run
 while (($#)); do
   case "$1" in
   --target-ref) shift; (($#)) || migration_die "--target-ref requires a value." "$MIGRATION_EXIT_USAGE"; MIGRATION_TARGET_REF="$1" ;;
   --expected-commit) shift; (($#)) || migration_die "--expected-commit requires a value." "$MIGRATION_EXIT_USAGE"; MIGRATION_EXPECTED_COMMIT="${1,,}" ;;
+  --expected-upstream-commit) shift; (($#)) || migration_die "--expected-upstream-commit requires a value." "$MIGRATION_EXIT_USAGE"; MIGRATION_EXPECTED_UPSTREAM_COMMIT="${1,,}" ;;
   --source) shift; (($#)) || migration_die "--source requires a path." "$MIGRATION_EXIT_USAGE"; MIGRATION_SOURCE="$1" ;;
+  --target) shift; (($#)) || migration_die "--target requires a path." "$MIGRATION_EXIT_USAGE"; MIGRATION_TARGET_ARGUMENT="$1" ;;
   --dry-run) MIGRATION_DRY_RUN=1 ;;
+  --repair-tracking) MIGRATION_MODE=repair-tracking ;;
   --resume) MIGRATION_MODE=resume ;;
   --rollback) MIGRATION_MODE=rollback ;;
   --status) MIGRATION_MODE=status ;;
@@ -774,7 +904,7 @@ done
 [[ -n ${HOME:-} && -d $HOME ]] || migration_die "HOME is not usable."
 ((EUID != 0)) || migration_die "Run migration as the normal user, not root."
 MIGRATION_STATE_BASE="$HOME/.local/state/j3w1zsh/migrations"
-MIGRATION_TARGET="${J3W1ZSH_MIGRATION_TARGET:-$HOME/j3w1zsh}"
+MIGRATION_TARGET="${MIGRATION_TARGET_ARGUMENT:-${J3W1ZSH_MIGRATION_TARGET:-$HOME/j3w1zsh}}"
 MIGRATION_REMOTE="https://github.com/j3w1/j3w1zsh.git"
 if [[ ${J3W1ZSH_MIGRATION_TEST_MODE:-0} == 1 ]]; then
   MIGRATION_REMOTE="${J3W1ZSH_MIGRATION_REMOTE:-$MIGRATION_REMOTE}"
@@ -785,7 +915,14 @@ case "$MIGRATION_MODE" in
 status) migration_status_command ;;
 rollback) migration_rollback ;;
 resume) migration_resume ;;
+repair-tracking)
+  [[ -z $MIGRATION_SOURCE && -z $MIGRATION_TARGET_REF ]] ||
+    migration_die "--repair-tracking does not accept --source or --target-ref." "$MIGRATION_EXIT_USAGE"
+  migration_repair_tracking
+  ;;
 run)
+  [[ -z $MIGRATION_EXPECTED_UPSTREAM_COMMIT && -z $MIGRATION_TARGET_ARGUMENT ]] ||
+    migration_die "--expected-upstream-commit and --target are reserved for --repair-tracking." "$MIGRATION_EXIT_USAGE"
   [[ $MIGRATION_EXPECTED_COMMIT =~ ^[0-9a-f]{40}$ ]] || migration_die "--expected-commit must be a full 40-hex OID." "$MIGRATION_EXIT_USAGE"
   [[ -n $MIGRATION_TARGET_REF && $MIGRATION_TARGET_REF != -* && $MIGRATION_TARGET_REF != *$'\n'* ]] || migration_die "A safe explicit --target-ref is required." "$MIGRATION_EXIT_USAGE"
   [[ -n $MIGRATION_SOURCE ]] || MIGRATION_SOURCE="$(migration_discover_source)" || migration_die "No former checkout was discovered; pass --source PATH."
