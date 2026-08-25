@@ -22,3 +22,5 @@ Each manifest/platform generation owns managed-file backups, optional SQLite pre
 ## Major migration recovery
 
 Major migration creates a permanent mode-0700 recovery root with inventory, patches, untracked bytes, unique-ref bundle where needed, pre-cutover paths, relocated legacy state, journal, and rollback evidence. Recovery data is never pruned automatically, and rollback never deletes the new checkout.
+
+Only exact registered resolver and workspace-comparison temporary directories are automatically cleaned. Their guarded cleanup does not make the recovery root or any recovery generation eligible for recursive removal.
