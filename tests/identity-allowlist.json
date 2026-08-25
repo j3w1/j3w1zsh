@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "patterns": [
+    "bloody[-_ ]?writer",
+    "bloody[-_ ]?notebook",
+    "\\bagnoster\\b",
+    "wsl-writer",
+    "\\bwriter\\b",
+    "BLOODY_WRITER",
+    "\\bBW_",
+    "\\bWRITER_",
+    "lua/writer",
+    "1w3j"
+  ],
+  "paths": [
+    "scripts/legacy/former-repository.sh",
+    "scripts/legacy/migrate-to-j3w1zsh.sh",
+    "scripts/legacy/windows-profile-reader.ps1",
+    "scripts/legacy/workspace-profile-v1.schema.json",
+    "scripts/legacy/workspace-v1-converter.sh",
+    "tests/identity-allowlist.json",
+    "tests/test-legacy-migration.sh",
+    "tests/test-powershell.sh",
+    "tests/test-powershell.ps1",
+    "tests/test-workspace-v2.sh",
+    "wiki/Migrating-from-the-Former-Project.md",
+    "wiki/Workspace-v1-to-v2-Migration.md"
+  ],
+  "wiki_paths": [
+    "wiki/Migrating-from-the-Former-Project.md",
+    "wiki/Workspace-v1-to-v2-Migration.md"
+  ]
+}

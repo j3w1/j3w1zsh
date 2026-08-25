@@ -1,4 +1,4 @@
-# ✦ WRITER WORKSPACE — WSL / TERMUX QUICK REFERENCE
+# ✦ J3W1ZSH WORKSTATION — ARCH / WSL / TERMUX QUICK REFERENCE
 
 > Neovim · Markdown · Zsh · tmux · Codex in WSL / remote Codex from Termux on Android
 
@@ -187,7 +187,7 @@
 
 | COMMAND | ACTION |
 | :--- | :--- |
-| `writer` | Documents + Writer Neovim |
+| `j3w1zsh edit` | Open Documents in Neovim |
 | `v file` | Open file in Neovim |
 | `pwd` / `cd path` | Show / change directory |
 | `ls` / `ll` / `la` | List files |
@@ -201,7 +201,7 @@
 
 | KEY | ACTION |
 | :--- | :--- |
-| `tn` | Create / attach `writer` session |
+| `tn` | Create / attach the `j3w1zsh` session |
 | `ta` / `tma` | Choose any tmux session |
 | `Ctrl-a c` | New window |
 | `Ctrl-a 1…9` | Select window |
@@ -226,7 +226,7 @@
 
 ## ◆ CODEX CLI — START & RESUME
 
-> Codex runs locally in Windows WSL. From Termux on Android, run `wsl-writer` and use Codex
+> Codex runs locally in Windows WSL. From Termux on Android, run `j3w1zsh remote attach` and use Codex
 > inside the selected WSL tmux session.
 
 | COMMAND | ACTION |
@@ -239,7 +239,7 @@
 | `codex resume --last` | Resume most recent |
 | `codex fork` | Fork a saved session |
 | `codex doctor` | Diagnose installation |
-| `bloody-writer reset-phase 60-codex` | Reapply the pinned Codex CLI release |
+| `j3w1zsh reset-phase 70-codex` | Reapply the pinned Codex CLI release |
 | `codex --help` | Complete CLI help |
 
 ## ◆ CODEX — INSIDE A SESSION
@@ -288,5 +288,5 @@
 
 ---
 
-> **Flow:** `writer` → edit → `Space w` → terminal/tmux → Codex
+> **Flow:** `j3w1zsh edit` → edit → `Space w` → terminal/tmux → Codex
 > **Safety:** Normal mode = commands. Insert mode = writing.

@@ -1,0 +1,24 @@
+{
+  "$schema": "../schemas/preset-v1.schema.json",
+  "schema_version": 1,
+  "id": "minimal",
+  "features": ["shell", "tmux", "neovim", "host-theme"],
+  "theme": "j3w1zsh",
+  "platforms": {
+    "arch": {
+      "pacman": ["curl", "fd", "fzf", "git", "jq", "neovim", "openssh", "ripgrep", "tmux", "unzip", "zsh"],
+      "npm_global": [],
+      "pip_user": []
+    },
+    "wsl": {
+      "pacman": ["curl", "fd", "fzf", "git", "jq", "neovim", "openssh", "ripgrep", "tmux", "unzip", "zsh"],
+      "npm_global": [],
+      "pip_user": []
+    },
+    "termux": {
+      "pkg": ["bash", "coreutils", "curl", "fd", "fzf", "git", "jq", "neovim", "openssh", "ripgrep", "tmux", "unzip", "zsh"],
+      "npm_global": [],
+      "pip_user": []
+    }
+  }
+}

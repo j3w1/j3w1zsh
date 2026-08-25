@@ -1,5 +1,5 @@
 # Local installer state (normally stored under ~/.local/state)
-.bloody-writer-state/
+.j3w1zsh-state/
 
 # Authentication, keys, histories, caches, and machine state
 .codex/

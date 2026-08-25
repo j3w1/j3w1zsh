@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/j3w1/j3w1zsh/blob/main/schemas/theme-v1.schema.json",
+  "title": "j3w1zsh declarative theme v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "display_name", "palette", "ansi"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "display_name": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "palette": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["background", "foreground", "blood", "bright_red", "selection", "muted", "orange", "blue", "semantic_green"],
+      "properties": {
+        "background": { "$ref": "#/$defs/color" },
+        "foreground": { "$ref": "#/$defs/color" },
+        "blood": { "$ref": "#/$defs/color" },
+        "bright_red": { "$ref": "#/$defs/color" },
+        "selection": { "$ref": "#/$defs/color" },
+        "muted": { "$ref": "#/$defs/color" },
+        "orange": { "$ref": "#/$defs/color" },
+        "blue": { "$ref": "#/$defs/color" },
+        "semantic_green": { "$ref": "#/$defs/color" }
+      }
+    },
+    "ansi": {
+      "type": "array",
+      "minItems": 16,
+      "maxItems": 16,
+      "items": { "$ref": "#/$defs/color" }
+    }
+  },
+  "$defs": {
+    "color": { "type": "string", "pattern": "^#[0-9A-F]{6}$" }
+  }
+}

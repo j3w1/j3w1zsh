@@ -7,6 +7,7 @@ tma — choose, attach, create, or safely kill a tmux session
 
 Usage:
   tma                    Open the interactive session picker.
+  tma SESSION            Attach exactly SESSION as another client.
   tma --list             Print every available session.
   tma --kill SESSION     Ask once, then kill exactly SESSION.
   tma --help             Show this guide.
@@ -25,7 +26,7 @@ Fallback menu (when fzf is unavailable):
 Examples:
   tma
   tma --list
-  tma --kill writer
+  tma --kill j3w1zsh
 
 This works locally in Windows WSL, locally in Termux on Android, and after SSH from
 Termux on Android into WSL. Attaching never disconnects an existing tmux client.
@@ -53,6 +54,10 @@ kill_session() {
   local session_name="$1"
   [[ -n $session_name ]] || {
     printf 'tma: --kill requires a session name.\n' >&2
+    return 2
+  }
+  [[ $session_name =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || {
+    printf 'tma: invalid session name: %s\n' "$session_name" >&2
     return 2
   }
   session_exists "$session_name" || {
@@ -115,9 +120,16 @@ case "${1:-}" in
   ;;
 "") ;;
 *)
-  printf 'tma: unknown option: %s\n\n' "$1" >&2
-  tma_usage >&2
-  exit 2
+  (($# == 1)) || {
+    printf 'tma: a direct attach accepts exactly one session name.\n' >&2
+    exit 2
+  }
+  [[ $1 =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || {
+    printf 'tma: invalid session name: %s\n' "$1" >&2
+    exit 2
+  }
+  need_tmux
+  attach_session "$1"
   ;;
 esac
 
@@ -128,8 +140,8 @@ if [[ -z $(list_sessions) ]]; then
     printf 'No tmux sessions exist yet. Run tma in an interactive terminal to create one.\n'
     exit 0
   fi
-  read -r -p 'No sessions exist. Name for a new session [writer]: ' session_name
-  create_session "${session_name:-writer}"
+  read -r -p 'No sessions exist. Name for a new session [j3w1zsh]: ' session_name
+  create_session "${session_name:-j3w1zsh}"
 fi
 
 if command -v fzf >/dev/null 2>&1 && [[ -t 0 && -t 1 ]]; then

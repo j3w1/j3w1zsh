@@ -1,51 +1,43 @@
 #!/usr/bin/env bash
 
 phase_90_verify() {
-  [[ $BW_TEST_MODE == 1 ]] && return 0
-  if [[ $BW_DRY_RUN == 1 ]]; then
-    bw_note "Verification will run after the planned changes are applied."
-    return 0
-  fi
-
-  local required=(zsh nvim tmux git gh rg fd fzf jq keychain node npm python)
-  if [[ $BW_PLATFORM == wsl ]]; then
-    required+=(pnpm sudo powershell.exe clip.exe)
-  else
-    required+=(pkg termux-clipboard-get termux-clipboard-set termux-reload-settings)
+  [[ $J3W1ZSH_TEST_MODE == 1 ]] && return 0
+  local required=(bash git jq)
+  j3w1zsh_preset_has_feature shell && required+=(zsh)
+  j3w1zsh_preset_has_feature tmux && required+=(tmux)
+  j3w1zsh_preset_has_feature neovim && required+=(nvim)
+  j3w1zsh_preset_has_feature github && required+=(gh)
+  j3w1zsh_preset_has_feature remote && required+=(ssh)
+  if [[ $J3W1ZSH_NO_PACKAGES != 1 && $J3W1ZSH_PLATFORM == wsl ]] && j3w1zsh_preset_has_feature codex; then
+    required+=(codex)
   fi
   local missing=() command_name
   for command_name in "${required[@]}"; do
-    bw_have "$command_name" || missing+=("$command_name")
+    j3w1zsh_have "$command_name" || missing+=("$command_name")
   done
-  ((${#missing[@]} == 0)) || bw_die "Required commands are missing: ${missing[*]}"
-
-  [[ -L $HOME/.zshrc ]] || bw_die "$HOME/.zshrc is not managed by Bloody Writer."
-  [[ -L $HOME/.tmux.conf ]] || bw_die "$HOME/.tmux.conf is not managed by Bloody Writer."
-  [[ -L $HOME/.config/nvim ]] || bw_die "$HOME/.config/nvim is not managed by Bloody Writer."
-  if [[ $BW_PLATFORM == wsl ]]; then
-    [[ -x $HOME/.local/bin/codex ]] || bw_die "The Linux Codex executable is missing."
-  else
-    [[ -s $HOME/.termux/font.ttf ]] || bw_die "The Termux Nerd Font is missing."
-    [[ -L $HOME/.termux/colors.properties ]] || bw_die "The Termux color palette is not managed by Bloody Writer."
-    [[ -d $HOME/storage/shared ]] || bw_die "Android shared storage is not available to Termux."
+  ((${#missing[@]} == 0)) || j3w1zsh_die "Required commands are missing: ${missing[*]}"
+  if j3w1zsh_preset_has_feature shell; then
+    [[ -d $HOME/.oh-my-zsh/.git ]] || j3w1zsh_die "Pinned Oh My Zsh is missing."
+    [[ $(git -C "$HOME/.oh-my-zsh" rev-parse HEAD 2>/dev/null || true) == "$OH_MY_ZSH_COMMIT" ]] ||
+      j3w1zsh_die "Oh My Zsh does not match the tracked commit."
   fi
-  [[ -x $HOME/.local/bin/tma ]] || bw_die "The tmux picker is missing."
-  [[ -x $HOME/.local/bin/bw-clipboard-copy ]] || bw_die "The clipboard bridge is missing."
-  [[ -x $HOME/.local/bin/bloody-writer ]] || bw_die "The Bloody Writer command is missing."
-
-  bw_run zsh -n "$HOME/.zshrc"
-  local tmux_socket="bloody-writer-verify-$$"
-  bw_run tmux -f "$HOME/.tmux.conf" -L "$tmux_socket" new-session -d -s verify
-  bw_run tmux -L "$tmux_socket" kill-server
-  bw_run env XDG_CONFIG_HOME="$HOME/.config" nvim --headless "+lua require('writer.theme').setup()" +qa
-
-  bw_log "Installed versions"
-  zsh --version
-  nvim --version | head -n 1
-  tmux -V
-  if [[ $BW_PLATFORM == wsl ]]; then
-    env CODEX_HOME="$HOME/.codex" "$HOME/.local/bin/codex" --version
-  else
-    bw_note "Codex: remote WSL workflow (run 'bloody-writer remote' to configure it)."
+  [[ -x $HOME/.local/bin/j3w1zsh ]] || j3w1zsh_die "The j3w1zsh command is missing."
+  if j3w1zsh_preset_has_feature shell; then
+    [[ -L $HOME/.zshrc ]] || j3w1zsh_die "$HOME/.zshrc is not managed by j3w1zsh."
+    zsh -n "$HOME/.zshrc"
+  fi
+  if j3w1zsh_preset_has_feature tmux; then
+    [[ -L $HOME/.tmux.conf ]] || j3w1zsh_die "$HOME/.tmux.conf is not managed by j3w1zsh."
+    [[ -x $HOME/.local/bin/tma ]] || j3w1zsh_die "The tmux picker is missing."
+    local tmux_socket="j3w1zsh-verify-$$"
+    tmux -f "$HOME/.tmux.conf" -L "$tmux_socket" new-session -d -s verify
+    tmux -L "$tmux_socket" kill-server
+  fi
+  if j3w1zsh_preset_has_feature neovim; then
+    [[ -L $HOME/.config/nvim ]] || j3w1zsh_die "$HOME/.config/nvim is not managed by j3w1zsh."
+    env XDG_CONFIG_HOME="$HOME/.config" nvim --headless "+lua require('j3w1zsh.theme').setup()" +qa
+  fi
+  if j3w1zsh_preset_has_feature tmux || j3w1zsh_preset_has_feature neovim; then
+    [[ -x $HOME/.local/bin/j3w1zsh-clipboard-copy ]] || j3w1zsh_die "The clipboard adapter is missing."
   fi
 }

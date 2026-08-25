@@ -1,71 +1,43 @@
 # Changelog
 
-All notable changes to Bloody Writer are documented here.
+All notable changes to `j3w1zsh` are documented here.
 
 ## [Unreleased]
 
 ### Added
 
-- Bloody Writer 0.3.0 workspace profiles: strict JSON schema/parser, curated scanner, audit,
-  WSL-only package/system/setup/verification phases, digest-keyed resume state, and private
-  system-file/SQLite recovery copies.
-- `bloody-writer install --workspace`, `workspace scan`, `validate`, `audit`, `apply`, `status`,
-  `resume`, and focused security/resume/scanner regression tests.
-- Global npm `neovim` provider in the base manifest so Neovim can use its Node host.
-- Root-agent onboarding and a human/AI maintenance guide with a reusable first prompt, repository
-  map, task-specific document routing, stable future-upgrade contracts, and handoff template.
-- Explicit `scripts/update-neovim-lock.sh` maintainer workflow for reviewed plugin-pin changes.
+- Independent lowercase `j3w1zsh` identity, exact tagline, original SVG/derived host PNG, and a
+  built-in declarative true-black/blood-red theme.
+- First-class adapters for native official Arch Linux, official Arch Linux under WSL 2, and
+  native Termux on Android, with fail-closed unsupported-platform dispatch.
+- A bounded CLI/output layer, typed action planner, fingerprinted resumable phases, atomic state,
+  backups, restore, doctor/status, edit, attach, and generalized remote commands.
+- Strict presets and package overrides, protected core closure, per-package provenance, explicit
+  prune candidates, and dry-run/package-only/package-free install modes.
+- Strict workspace schema v2 with explicit platform targets, candidate-to-approved trust,
+  committed-clean sources, bounded direct argv lifecycle, hostile-input rejection, and v1
+  candidate conversion reports.
+- Standalone exact-commit major migration with discovery, classification, recovery, translation,
+  partial-install support, verified cutover, rerunnable resume, and rollback.
+- Fork-aware fast-forward updates, deterministic generated-drift recovery, fresh-executable
+  relaunch, and protected authored/staged/divergent state.
+- Version-pinned GitHub Wiki tooling, agent context routes, contributor patch workflow, and the
+  complete 1.0.0 operations/security/maintenance manual.
+- Local and hosted test contracts for platform, output, planner, packages, theme, workspace,
+  migration, update/fork, Wiki, Windows profile, Termux simulation, identity, and security.
 
 ### Changed
 
-- Root bootstrap now installs `jq`, and public guidance explicitly treats the Arch WSL installer
-  as fresh-instance-first while preserving complete base support in Termux on Android.
-- Normal Neovim sessions now use a device-local copy of the reviewed plugin lock, preventing
-  runtime plugin operations from dirtying the Git checkout through the managed config symlink.
-- `bloody-writer update` now safely backs up and repairs known legacy Neovim lock drift, prints and
-  protects all other local edits, and relaunches itself after pulling so new installer phases are
-  handled in the same command.
+- Canonical checkout, command, settings, state, cache, helper, Neovim namespace, theme, profile,
+  schema, and active source identity now use `j3w1zsh`.
+- Default tmux session is `j3w1zsh`; `tma` remains the bounded multi-client picker and is exposed
+  through `j3w1zsh attach`.
+- Long-form operations moved from the repository `docs/` tree into the exact compatible Wiki
+  commit named by `wiki-lock.json`.
 
-### Fixed
+### Removed
 
-- Make the managed Zsh command path explicit and deduplicated on both WSL and Termux, with a
-  regression check proving `bloody-writer` resolves through `~/.local/bin` after installation.
-- Hide Termux's generated `u0_a…@localhost` identity by matching Agnoster against Zsh's
-  authoritative `USERNAME` parameter instead of the potentially different inherited `USER` value.
-- Tell Termux users to close and reopen the app only after every installation phase completes
-  successfully, so the new font, colors, login shell, and Agnoster prompt are activated together.
-
-## [0.2.0] - 2026-07-31
-
-### Added
-
-- First-class native Termux on Android installation with automatic platform detection, `pkg`
-  manifest, Zsh/tmux/Neovim/GitHub tools, Android clipboard/storage, font, and palette.
-- Safe Windows host-theme phase that installs a verified user Nerd Font and separate Windows
-  Terminal fragment/profile without rewriting existing settings.
-- Recorded manual checkpoints for WSL/Windows Terminal and Android permission/app pauses, with
-  status text and rerun-to-resume behavior.
-- Public Bloody Writer logo, WSL hero/gallery screenshots, and an Oh My Zsh-inspired README
-  structure with explicit platform/capability tables.
-- Comprehensive Termux, customization/publishing, cross-platform install, remote access, and
-  capability-oriented cheat-sheet documentation.
-
-### Changed
-
-- `tma` now has friendly help, exact session targets, `Ctrl-X`/fallback kill actions, and mandatory
-  one-key confirmation before killing a selected tmux session.
-- tmux and Neovim clipboard integration now dispatches automatically to Windows WSL or Termux:API.
-- `bloody-writer remote` now configures either the WSL Tailscale SSH host or the Termux Android
-  client according to the detected environment.
-- Codex is explicitly local to WSL; Termux uses the supported remote WSL/tmux workflow and never
-  installs an unofficial Android build.
-
-## [0.1.0] - 2026-07-31
-
-### Added
-
-- Resumable Arch WSL installer with restart checkpoints and per-phase state.
-- Fresh-root user bootstrap with systemd, default-user, sudo, and interop configuration.
-- Bloody Writer Zsh/Agnoster, tmux, Neovim, and terminal theme snapshot.
-- Locked plugins, verified spell assets, pinned Oh My Zsh/Codex, GitHub SSH setup, backups, tests,
-  CI, and optional Termux-to-WSL Tailscale SSH access.
+- Writing-oriented active identity, command aliases, namespaces, host artifacts, and current
+  examples after verified migration.
+- Legacy screenshots and pen artwork. New captures remain pending human privacy review.
+- Any general plugin or arbitrary third-party execution surface.

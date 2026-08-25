@@ -14,6 +14,9 @@ while IFS= read -r -d '' document; do
     link="${link#<}"
     link="${link%>}"
     target="$(dirname -- "$document")/$link"
+    if [[ $document == ./wiki/* && ! -e $target && -e $target.md ]]; then
+      target="$target.md"
+    fi
     if [[ ! -e $target ]]; then
       printf 'Broken relative documentation link: %s -> %s\n' "$document" "$link" >&2
       failure=1

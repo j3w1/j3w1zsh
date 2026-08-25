@@ -1,8 +1,0 @@
-# Installed globally through the Arch-managed npm.
-bash-language-server
-neovim
-prettier
-pyright
-typescript
-typescript-language-server
-vscode-langservers-extracted

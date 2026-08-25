@@ -1,16 +1,20 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$DistroName = "archlinux"
+    [string]$DistroName = "archlinux",
+    [Parameter(Mandatory = $true)][string]$ThemePath,
+    [string]$MigrationRecoveryPath = "",
+    [string]$OutputRoot = "",
+    [switch]$SkipFontInstall
 )
 
 $ErrorActionPreference = "Stop"
 $RepositoryRoot = Split-Path -Parent $PSScriptRoot
 $VersionsFile = Join-Path $RepositoryRoot "versions.env"
+$BrandPng = Join-Path $RepositoryRoot "assets/brand/j3w1zsh.png"
 
 function Get-PinnedValue {
     param([Parameter(Mandatory = $true)][string]$Name)
-
     $line = Get-Content -LiteralPath $VersionsFile |
         Where-Object { $_ -match "^$([Regex]::Escape($Name))=" } |
         Select-Object -First 1
@@ -20,98 +24,90 @@ function Get-PinnedValue {
     return $Matches[1]
 }
 
-Write-Host "Bloody Writer - Windows host theme" -ForegroundColor Red
+if (-not (Test-Path -LiteralPath $ThemePath -PathType Leaf)) {
+    throw "Rendered declarative theme is missing: $ThemePath"
+}
+if (-not (Test-Path -LiteralPath $BrandPng -PathType Leaf)) {
+    throw "Rendered brand PNG is missing: $BrandPng"
+}
+$theme = Get-Content -Raw -LiteralPath $ThemePath | ConvertFrom-Json
+if ($theme.name -ne "j3w1zsh") {
+    throw "Rendered Windows Terminal theme must be lowercase j3w1zsh."
+}
 
-$fontVersion = Get-PinnedValue -Name "NERD_FONT_VERSION"
-$fontChecksum = Get-PinnedValue -Name "NERD_FONT_SHA256"
+Write-Host "j3w1zsh - Windows host theme" -ForegroundColor Red
+
 $fontFileName = "JetBrainsMonoNerdFontMono-Regular.ttf"
-$fontUrl = "https://raw.githubusercontent.com/ryanoasis/nerd-fonts/v$fontVersion/patched-fonts/JetBrainsMono/Ligatures/Regular/$fontFileName"
-$downloadPath = Join-Path $env:TEMP "bloody-writer-$fontFileName"
-
-Write-Host "Downloading the pinned JetBrains Mono Nerd Font..." -ForegroundColor Yellow
-Invoke-WebRequest -Uri $fontUrl -OutFile $downloadPath -UseBasicParsing
-$actualChecksum = (Get-FileHash -Algorithm SHA256 -LiteralPath $downloadPath).Hash.ToLowerInvariant()
-if ($actualChecksum -ne $fontChecksum.ToLowerInvariant()) {
-    throw "Nerd Font checksum verification failed."
-}
-
-$userFontDirectory = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Fonts"
-New-Item -ItemType Directory -Force -Path $userFontDirectory | Out-Null
-$installedFontPath = Join-Path $userFontDirectory $fontFileName
-Copy-Item -LiteralPath $downloadPath -Destination $installedFontPath -Force
-
-$fontRegistryPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts"
-New-Item -Path $fontRegistryPath -Force | Out-Null
-$fontRegistryProperties = @{
-    Path = $fontRegistryPath
-    Name = "JetBrainsMono Nerd Font Mono (TrueType)"
-    Value = $installedFontPath
-    PropertyType = "String"
-    Force = $true
-}
-New-ItemProperty @fontRegistryProperties | Out-Null
-
-if (-not ("BloodyWriter.NativeFont" -as [type])) {
-    Add-Type -Namespace BloodyWriter -Name NativeFont -MemberDefinition @'
+if (-not $SkipFontInstall) {
+    $fontVersion = Get-PinnedValue -Name "NERD_FONT_VERSION"
+    $fontChecksum = Get-PinnedValue -Name "NERD_FONT_SHA256"
+    $fontUrl = "https://raw.githubusercontent.com/ryanoasis/nerd-fonts/v$fontVersion/patched-fonts/JetBrainsMono/Ligatures/Regular/$fontFileName"
+    $downloadPath = Join-Path $env:TEMP "j3w1zsh-$fontFileName"
+    Invoke-WebRequest -Uri $fontUrl -OutFile $downloadPath -UseBasicParsing
+    $actualChecksum = (Get-FileHash -Algorithm SHA256 -LiteralPath $downloadPath).Hash.ToLowerInvariant()
+    if ($actualChecksum -ne $fontChecksum.ToLowerInvariant()) {
+        throw "Nerd Font checksum verification failed."
+    }
+    $userFontDirectory = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Fonts"
+    New-Item -ItemType Directory -Force -Path $userFontDirectory | Out-Null
+    $installedFontPath = Join-Path $userFontDirectory $fontFileName
+    Copy-Item -LiteralPath $downloadPath -Destination $installedFontPath -Force
+    $fontRegistryPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts"
+    New-Item -Path $fontRegistryPath -Force | Out-Null
+    New-ItemProperty -Path $fontRegistryPath -Name "JetBrainsMono Nerd Font Mono (TrueType)" `
+        -Value $installedFontPath -PropertyType String -Force | Out-Null
+    if (-not ("J3W1ZSH.NativeFont" -as [type])) {
+        Add-Type -Namespace J3W1ZSH -Name NativeFont -MemberDefinition @'
 [System.Runtime.InteropServices.DllImport("gdi32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
 public static extern int AddFontResourceEx(string fileName, uint flags, System.IntPtr reserved);
 '@
+    }
+    [J3W1ZSH.NativeFont]::AddFontResourceEx($installedFontPath, 0x10, [IntPtr]::Zero) | Out-Null
+    Remove-Item -LiteralPath $downloadPath -Force
+} else {
+    Write-Warning "Package-free mode did not acquire or update the pinned Windows font."
 }
-[BloodyWriter.NativeFont]::AddFontResourceEx($installedFontPath, 0x10, [IntPtr]::Zero) | Out-Null
 
-$fragmentDirectory = Join-Path $env:LOCALAPPDATA "Microsoft\Windows Terminal\Fragments\BloodyWriter"
+$fragmentBase = if ($OutputRoot) { $OutputRoot } else { Join-Path $env:LOCALAPPDATA "Microsoft\Windows Terminal\Fragments" }
+$fragmentDirectory = Join-Path $fragmentBase "j3w1zsh"
 New-Item -ItemType Directory -Force -Path $fragmentDirectory | Out-Null
-$iconPath = Join-Path $fragmentDirectory "bloody-writer-logo.png"
-Copy-Item -LiteralPath (Join-Path $RepositoryRoot "assets\brand\bloody-writer-logo.png") -Destination $iconPath -Force
+$iconPath = Join-Path $fragmentDirectory "j3w1zsh.png"
+Copy-Item -LiteralPath $BrandPng -Destination $iconPath -Force
 
-$fragment = [ordered]@{
-    profiles = @(
-        [ordered]@{
-            guid = "{8f916408-9c85-48e2-a01f-b02188433b83}"
-            name = "Bloody Writer - Arch WSL"
-            commandline = "wsl.exe -d $DistroName"
-            startingDirectory = "~"
-            colorScheme = "Bloody Writer"
-            icon = $iconPath
-            font = [ordered]@{
-                face = "JetBrainsMono Nerd Font Mono"
-                size = 13
-            }
-        }
-    )
-    schemes = @(
-        [ordered]@{
-            name = "Bloody Writer"
-            background = "#000000"
-            foreground = "#FFF1F1"
-            cursorColor = "#FF334D"
-            selectionBackground = "#7A0014"
-            black = "#000000"
-            red = "#B00020"
-            green = "#FF334D"
-            yellow = "#FFB86C"
-            blue = "#AFCBFF"
-            purple = "#DFA0A0"
-            cyan = "#FFF1F1"
-            white = "#FFFFFF"
-            brightBlack = "#632A2A"
-            brightRed = "#FF334D"
-            brightGreen = "#FF7587"
-            brightYellow = "#FFD09A"
-            brightBlue = "#D0E0FF"
-            brightPurple = "#FF8F9C"
-            brightCyan = "#FFF1F1"
-            brightWhite = "#FFFFFF"
-        }
-    )
+$profileGuid = "{8f916408-9c85-48e2-a01f-b02188433b83}"
+$legacyReader = Join-Path $RepositoryRoot "scripts\legacy\windows-profile-reader.ps1"
+if (Test-Path -LiteralPath $legacyReader -PathType Leaf) {
+    $legacyArguments = @{}
+    if ($MigrationRecoveryPath) {
+        $legacyArguments.RecoveryDirectory = $MigrationRecoveryPath
+        $legacyArguments.Deactivate = $true
+    }
+    if ($OutputRoot) {
+        $legacyArguments.FragmentsRoot = $OutputRoot
+    }
+    $discoveredGuid = & $legacyReader @legacyArguments
+    if ($discoveredGuid -and $discoveredGuid.Trim() -match '^\{[0-9a-fA-F-]{36}\}$') {
+        $profileGuid = $discoveredGuid.Trim()
+    }
 }
 
-$fragmentPath = Join-Path $fragmentDirectory "bloody-writer.json"
+$profile = [ordered]@{
+    guid = $profileGuid
+    name = "j3w1zsh - arch wsl"
+    commandline = "wsl.exe -d $DistroName"
+    startingDirectory = "~"
+    colorScheme = "j3w1zsh"
+    icon = $iconPath
+    font = [ordered]@{ face = "JetBrainsMono Nerd Font Mono"; size = 13 }
+}
+$scheme = [ordered]@{}
+foreach ($property in $theme.PSObject.Properties) {
+    $scheme[$property.Name] = $property.Value
+}
+$fragment = [ordered]@{ profiles = @($profile); schemes = @($scheme) }
+$fragmentPath = Join-Path $fragmentDirectory "j3w1zsh.json"
 $json = $fragment | ConvertTo-Json -Depth 8
 [IO.File]::WriteAllText($fragmentPath, $json, [Text.UTF8Encoding]::new($false))
-Remove-Item -LiteralPath $downloadPath -Force
 
-Write-Host ""
-Write-Host "Windows host theme installed." -ForegroundColor Green
-Write-Host "Close every Windows Terminal window, reopen it, and select:"
-Write-Host "  Bloody Writer - Arch WSL" -ForegroundColor White
+Write-Host "Windows host theme installed. Reopen Windows Terminal and select:"
+Write-Host "  j3w1zsh - arch wsl" -ForegroundColor White

@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/j3w1/j3w1zsh/blob/main/schemas/preset-v1.schema.json",
+  "title": "j3w1zsh preset v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "id", "features", "theme", "platforms"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "features": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "shell", "tmux", "neovim", "github", "codex", "remote",
+          "host-theme", "developer-tools", "workspace"
+        ]
+      }
+    },
+    "theme": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "platforms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["arch", "wsl", "termux"],
+      "properties": {
+        "arch": { "$ref": "#/$defs/archPackages" },
+        "wsl": { "$ref": "#/$defs/archPackages" },
+        "termux": { "$ref": "#/$defs/termuxPackages" }
+      }
+    }
+  },
+  "$defs": {
+    "packageArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9@._+:-]+$" }
+    },
+    "archPackages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pacman", "npm_global", "pip_user"],
+      "properties": {
+        "pacman": { "$ref": "#/$defs/packageArray" },
+        "npm_global": { "$ref": "#/$defs/packageArray" },
+        "pip_user": { "$ref": "#/$defs/packageArray" }
+      }
+    },
+    "termuxPackages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pkg", "npm_global", "pip_user"],
+      "properties": {
+        "pkg": { "$ref": "#/$defs/packageArray" },
+        "npm_global": { "$ref": "#/$defs/packageArray" },
+        "pip_user": { "$ref": "#/$defs/packageArray" }
+      }
+    }
+  }
+}

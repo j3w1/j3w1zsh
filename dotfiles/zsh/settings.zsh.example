@@ -1,6 +1,6 @@
-# Personal values live here rather than in the public repository.
-export BLOODY_WRITER_DOCUMENTS="${BLOODY_WRITER_DOCUMENTS:-$HOME/Documents}"
-export BLOODY_WRITER_GITHUB_KEY="${BLOODY_WRITER_GITHUB_KEY:-}"
-export BLOODY_WRITER_WSL_HOST="${BLOODY_WRITER_WSL_HOST:-}"
-export BLOODY_WRITER_WSL_USER="${BLOODY_WRITER_WSL_USER:-}"
-export BLOODY_WRITER_WSL_TMA="${BLOODY_WRITER_WSL_TMA:-}"
+# Trusted, user-owned shell configuration. j3w1zsh creates this file once and never overwrites it.
+export J3W1ZSH_EDIT_ROOT="${J3W1ZSH_EDIT_ROOT:-$HOME/Documents}"
+export J3W1ZSH_GITHUB_KEY="${J3W1ZSH_GITHUB_KEY:-}"
+export J3W1ZSH_REMOTE_HOST="${J3W1ZSH_REMOTE_HOST:-}"
+export J3W1ZSH_REMOTE_USER="${J3W1ZSH_REMOTE_USER:-}"
+export J3W1ZSH_REMOTE_ATTACH_COMMAND="${J3W1ZSH_REMOTE_ATTACH_COMMAND:-~/.local/bin/tma}"

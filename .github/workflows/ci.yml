@@ -9,11 +9,71 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  ubuntu-static-unit-security-identity:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install test tools
-        run: sudo apt-get update && sudo apt-get install -y jq ripgrep shellcheck zsh
-      - name: Run tests
+        run: sudo apt-get update && sudo apt-get install -y jq python3 ripgrep shellcheck zsh
+      - name: Run full local contract
         run: tests/run.sh
+
+  official-arch:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - name: Install checkout and test tools
+        run: pacman -Syu --noconfirm git icu jq python ripgrep shellcheck sudo zsh
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify official native Arch surface and non-destructive fixtures
+        shell: bash
+        env:
+          J3W1ZSH_TEST_EFFECTIVE_UID: "1000"
+        run: |
+          [[ "$(bin/j3w1zsh platform --json | jq -r .data.id)" == arch ]]
+          tests/test-platform-contract.sh
+          tests/test-foundation.sh
+          tests/test-packages-themes.sh
+
+  windows-host:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify PowerShell parsing, host theme, GUID, JSON, and paths
+        shell: powershell
+        run: ./tests/test-powershell.ps1
+
+  simulated-termux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install simulation tools
+        run: sudo apt-get update && sudo apt-get install -y jq ripgrep shellcheck zsh
+      - name: Verify Termux adapters and hostile inputs
+        run: |
+          tests/test-platform-contract.sh
+          tests/test-terminal-contract.sh
+          tests/test-workspace-v2.sh
+          tests/test-legacy-migration.sh
+
+  migration-update-fork:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install fixture tools
+        run: sudo apt-get update && sudo apt-get install -y jq ripgrep zsh
+      - name: Verify major migration, update, redirect, and fork safety
+        run: |
+          tests/test-legacy-migration.sh
+          tests/test-update-v1.sh
+
+  wiki-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Wiki tools
+        run: sudo apt-get update && sudo apt-get install -y jq ripgrep zsh
+      - name: Verify prepared Wiki and exact lock
+        run: |
+          tests/test-wiki.sh
+          tests/validate-wiki-lock.sh

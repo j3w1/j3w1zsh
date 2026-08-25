@@ -13,7 +13,7 @@ patterns=(
   '/home/j3w1'
   '/mnt/c/Users/iqbal'
   'C:\\Users\\iqbal'
-  'id_ed25519_github_1w3j'
+  'id_ed25519_github_[A-Za-z0-9_-]+'
 )
 
 failure=0

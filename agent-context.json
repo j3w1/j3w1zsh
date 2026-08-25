@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "code_version": "1.0.0",
+  "default_exclusions": [
+    "assets/screenshots",
+    ".wiki",
+    "downloaded state",
+    "generated state",
+    "unrelated fixtures",
+    "scripts/legacy unless the route is migration"
+  ],
+  "routes": {
+    "installer": {
+      "code_paths": ["bin/j3w1zsh", "scripts/commands/install.sh", "scripts/phases", "scripts/lib/core"],
+      "wiki_pages": ["Getting Started", "Installation Methods", "CLI and Help", "Architecture and State"],
+      "exclusions": ["workspace lifecycle", "Wiki publication"]
+    },
+    "platform-arch": {
+      "code_paths": ["scripts/platforms/arch.sh", "scripts/lib/core/platform.sh", "presets"],
+      "wiki_pages": ["Native Arch Linux", "Package Layers and Presets"],
+      "exclusions": ["WSL host adapter", "Termux Android adapter"]
+    },
+    "platform-wsl": {
+      "code_paths": ["scripts/platforms/wsl.sh", "windows", "scripts/bootstrap-root.sh"],
+      "wiki_pages": ["Arch WSL 2", "Installation Methods", "Troubleshooting"],
+      "exclusions": ["native Arch host ownership", "Termux Android adapter"]
+    },
+    "platform-termux": {
+      "code_paths": ["scripts/platforms/termux.sh", "dotfiles/local-bin"],
+      "wiki_pages": ["Termux on Android", "Remote j3w1zsh Hosts"],
+      "exclusions": ["local Android Codex", "system destinations", "privilege wrappers"]
+    },
+    "packages-presets": {
+      "code_paths": ["presets", "schemas/preset-v1.schema.json", "schemas/packages-v1.schema.json", "scripts/lib/packages.sh"],
+      "wiki_pages": ["Package Layers and Presets", "Updating"],
+      "exclusions": ["package-manager dependency cleanup", "unapproved workspace lifecycle"]
+    },
+    "theme": {
+      "code_paths": ["themes", "schemas/theme-v1.schema.json", "scripts/lib/themes.sh", "dotfiles"],
+      "wiki_pages": ["Theme Architecture", "Screenshot and Showcase Guide"],
+      "exclusions": ["downloaded fonts", "historical screenshots"]
+    },
+    "workspace": {
+      "code_paths": ["scripts/lib/workspace-v2.sh", "schemas/workspace-profile-v2.schema.json", "tests/test-workspace-v2.sh"],
+      "wiki_pages": ["Workspace Profiles and Schema v2", "j3w1zsh plan", "Security Model"],
+      "exclusions": ["legacy migration material", "private project bytes"]
+    },
+    "migration": {
+      "code_paths": ["scripts/legacy", "tests/test-legacy-migration.sh"],
+      "wiki_pages": ["Migrating from the Former Project", "Workspace v1-to-v2 Migration", "Backup and Recovery"],
+      "exclusions": ["credentials", "private state contents"]
+    },
+    "update": {
+      "code_paths": ["scripts/commands/update.sh", "scripts/lib/core/git.sh", "tests/test-update-v1.sh"],
+      "wiki_pages": ["Updating", "Backup and Recovery"],
+      "exclusions": ["workspace lifecycle", "package pruning"]
+    },
+    "remote": {
+      "code_paths": ["scripts/commands/remote.sh", "dotfiles/local-bin/.local/bin/tma"],
+      "wiki_pages": ["Remote j3w1zsh Hosts", "Security Model"],
+      "exclusions": ["router forwarding", "public SSH exposure", "credential migration"]
+    },
+    "wiki": {
+      "code_paths": ["scripts/lib/wiki.sh", "scripts/commands/wiki.sh", "wiki-lock.json", "agent-context.json", "wiki"],
+      "wiki_pages": ["AI and Agent Maintainer Guide", "Maintenance and Releases", "Source and Version References"],
+      "exclusions": ["arbitrary latest Wiki content", "unrouted pages"]
+    },
+    "release": {
+      "code_paths": ["CHANGELOG.md", "scripts/legacy/migrate-to-j3w1zsh.sh", "checksums", "wiki-lock.json", ".github/workflows"],
+      "wiki_pages": ["Maintenance and Releases", "Installation Methods", "Migrating from the Former Project"],
+      "exclusions": ["unverified tags", "unverified assets", "deployment"]
+    },
+    "security": {
+      "code_paths": ["SECURITY.md", "scripts/lib/core/filesystem.sh", "scripts/lib/workspace-v2.sh", "scripts/legacy", "tests/security-scan.sh"],
+      "wiki_pages": ["Security Model", "Backup and Recovery"],
+      "exclusions": ["secret bytes", "authentication state"]
+    }
+  }
+}
