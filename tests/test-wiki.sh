@@ -116,6 +116,16 @@ for required in Home.md _Sidebar.md _Footer.md Screenshot-and-Showcase-Guide.md;
   git --git-dir="$publish_remote" cat-file -e "$published_oid:$required"
 done
 
+# Publishing the already complete Wiki is an idempotent no-op, including required page names
+# whose canonical filenames contain meaningful hyphens.
+env HOME="$publish_home" XDG_STATE_HOME="$publish_home/.local/state" XDG_CONFIG_HOME="$publish_home/.config" XDG_CACHE_HOME="$publish_home/.cache" \
+  GIT_AUTHOR_NAME='Wiki Tests' GIT_AUTHOR_EMAIL='tests@example.invalid' GIT_COMMITTER_NAME='Wiki Tests' GIT_COMMITTER_EMAIL='tests@example.invalid' \
+  J3W1ZSH_ASSUME_YES=1 J3W1ZSH_TEST_MODE=1 J3W1ZSH_TEST_PLATFORM=wsl J3W1ZSH_TEST_WIKI_URL="$publish_remote" J3W1ZSH_TEST_WIKI_LOCK="$publish_lock" \
+  "$repo_root/bin/j3w1zsh" wiki publish >/dev/null
+[[ $(git --git-dir="$publish_remote" rev-parse HEAD) == "$published_oid" ]]
+[[ $(jq -r .commit "$publish_lock") == "$published_oid" ]]
+git --git-dir="$publish_remote" cat-file -e "$published_oid:Workspace-v1-to-v2-Migration.md"
+
 grep -q 'based on the pinned OID' "$repo_root/wiki/Maintenance-and-Releases.md"
 
 printf 'Wiki pin, sync, status, routing, dirty preservation, publication, pages, and links tests passed.\n'

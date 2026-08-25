@@ -109,7 +109,9 @@ j3w1zsh_git_classify_repository() {
   elif j3w1zsh_git_is_url "$origin_url" "$old_canonical"; then identity=old-canonical
   else identity=fork
   fi
-  tracking_ref="$(git -C "$J3W1ZSH_REPO_ROOT" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
+  if ! tracking_ref="$(git -C "$J3W1ZSH_REPO_ROOT" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null)"; then
+    tracking_ref=""
+  fi
   [[ -n $tracking_ref ]] || j3w1zsh_die "Current branch has no upstream; owner review is required." "$J3W1ZSH_EXIT_PROTECTED" missing_upstream
   tracking_remote="${tracking_ref%%/*}"
   tracking_branch="${tracking_ref#*/}"

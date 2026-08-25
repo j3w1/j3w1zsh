@@ -39,6 +39,14 @@ All notable changes to `j3w1zsh` are documented here.
 - Major-migration resolver and workspace-comparison directories now use exact script-owned
   registration, ownership markers, and non-interactive cleanup, including write-protected Git
   objects, without making permanent recovery generations eligible for automatic removal.
+- Exact migration acquisition now creates a full-history `main` checkout with a resolvable
+  `origin/main`, even when canonical main advances beyond the pinned migration target. A guarded
+  tracking-repair mode fixes the affected shallow `[gone]` state without changing HEAD, authored
+  files, branch configuration, packages, user configuration, or permanent recovery data.
+- `doctor` now checks the locally resolvable Git upstream without making a network request, and
+  updater classification returns the stable protected-state error for a missing upstream.
+- Wiki publication now validates existing pages against their exact lock-derived filenames, so
+  rerunning publication remains idempotent for required names that contain meaningful hyphens.
 
 ### Removed
 

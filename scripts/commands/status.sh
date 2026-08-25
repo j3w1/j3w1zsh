@@ -93,6 +93,14 @@ j3w1zsh_doctor_command() {
     [[ $ok == true ]] || overall=error
     checks="$(jq -cn --argjson checks "$checks" --arg name "$command_name" --argjson ok "$ok" '$checks + [{name:$name,ok:$ok}]')"
   done
+  ok=false
+  if git -C "$J3W1ZSH_REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 &&
+    git -C "$J3W1ZSH_REPO_ROOT" rev-parse --verify '@{upstream}^{commit}' >/dev/null 2>&1; then
+    ok=true
+  else
+    overall=error
+  fi
+  checks="$(jq -cn --argjson checks "$checks" --argjson ok "$ok" '$checks + [{name:"git-upstream",ok:$ok}]')"
   local data
   data="$(jq -cn --arg platform "$J3W1ZSH_PLATFORM" --argjson checks "$checks" '{platform:$platform,checks:$checks}')"
   if [[ $J3W1ZSH_OUTPUT_MODE == json ]]; then

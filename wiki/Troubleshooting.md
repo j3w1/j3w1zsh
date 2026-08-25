@@ -8,6 +8,12 @@ A user-owned external action is pending—commonly WSL restart, Windows Terminal
 
 Git or migration found protected authored, staged, untracked, deleted, renamed, ahead, divergent, or unique-commit state. Inspect the listed paths and recovery root. Do not reset, clean, rebase, or force-push merely to continue.
 
+If `git -C ~/j3w1zsh status --short --branch` reports `[gone]`, do not reset, reclone, or roll back an otherwise successful migration. Follow the exact-commit `--repair-tracking` procedure in [Migrating from the Former Project](Migrating-from-the-Former-Project). It refuses dirty, unique, divergent, noncanonical, or mismatched state and does not change HEAD or checkout files.
+
+## Doctor reports `git-upstream`
+
+`j3w1zsh doctor` resolves the configured upstream from local Git data only; it does not contact the network. A failed `git-upstream` check means the upstream is absent or its local tracking ref cannot resolve. Inspect `git status --short --branch`, branch configuration, and local refs before using update.
+
 ## Unsupported platform
 
 Run `j3w1zsh platform --json`. WSL must be version 2 and official Arch. Native Linux must be official Arch. Termux must be the native main environment and not root.
