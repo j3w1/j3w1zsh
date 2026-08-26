@@ -148,9 +148,11 @@ EOF
   grep -q $'^real.one\t1 window(s)\tdetached\tcreated ' <<<"$real_rows"
   grep -q $'^real-two\t1 window(s)\tdetached\tcreated ' <<<"$real_rows"
   printf 'n' | PATH="$real_bin:$PATH" "$tma" --kill real.one >/dev/null
-  "$real_tmux" -L "$real_tmux_socket" list-sessions -F '#{session_name}' | grep -Fxq 'real.one'
+  real_names="$("$real_tmux" -L "$real_tmux_socket" list-sessions -F '#{session_name}')"
+  grep -Fxq 'real.one' <<<"$real_names"
   printf 'y' | PATH="$real_bin:$PATH" "$tma" --kill real.one >/dev/null
-  if "$real_tmux" -L "$real_tmux_socket" list-sessions -F '#{session_name}' | grep -Fxq 'real.one'; then
+  real_names="$("$real_tmux" -L "$real_tmux_socket" list-sessions -F '#{session_name}')"
+  if grep -Fxq 'real.one' <<<"$real_names"; then
     printf 'tma did not kill the exact dotted real-tmux session.\n' >&2
     exit 1
   fi
