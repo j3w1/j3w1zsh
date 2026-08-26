@@ -41,11 +41,38 @@ case "${1:-}" in
   *) exit 1 ;;
   esac
   ;;
--S | -Syu)
+-Sy)
+  [[ "$*" == '-Sy --needed archlinux-keyring' ]] || exit 2
+  [[ ${TEST_FAIL_MANAGER:-} != pacman ]] || exit 42
+  [[ ${TEST_FAIL_PACMAN_STEP:-} != keyring ]] || exit 41
+  if grep -Fxq 'pacman:archlinux-keyring-current' "$TEST_PACKAGE_DB"; then
+    printf 'pacman-keyring skipped current\n' >>"$TEST_PACKAGE_LOG"
+  else
+    grep -Fxq 'pacman:archlinux-keyring' "$TEST_PACKAGE_DB" || printf 'pacman:archlinux-keyring\n' >>"$TEST_PACKAGE_DB"
+    printf 'pacman:archlinux-keyring-current\n' >>"$TEST_PACKAGE_DB"
+    printf 'pacman-keyring upgraded first\n' >>"$TEST_PACKAGE_LOG"
+  fi
+  ;;
+-Su)
+  [[ ${TEST_FAIL_MANAGER:-} != pacman ]] || exit 42
+  [[ ${TEST_FAIL_PACMAN_STEP:-} != full ]] || exit 42
+  if [[ ${TEST_PACMAN_NETWORK_FAILURE:-} == 1 ]]; then
+    printf '%s\n' "error: failed retrieving file 'fixture.pkg.tar.zst': Operation too slow" >&2
+    printf '%s\n' 'error: failed to commit transaction (failed to retrieve some files)' >&2
+    exit 42
+  fi
+  if [[ ${TEST_NO_INSTALL_MANAGER:-} != pacman ]]; then
+    for package in "$@"; do
+      case "$package" in -Su | --needed) continue ;; esac
+      grep -Fxq "pacman:$package" "$TEST_PACKAGE_DB" || printf 'pacman:%s\n' "$package" >>"$TEST_PACKAGE_DB"
+    done
+  fi
+  ;;
+-S)
   [[ ${TEST_FAIL_MANAGER:-} != pacman ]] || exit 42
   if [[ ${TEST_NO_INSTALL_MANAGER:-} != pacman ]]; then
     for package in "$@"; do
-      case "$package" in -S | -Syu | --needed) continue ;; esac
+      case "$package" in -S | --needed) continue ;; esac
       grep -Fxq "pacman:$package" "$TEST_PACKAGE_DB" || printf 'pacman:%s\n' "$package" >>"$TEST_PACKAGE_DB"
     done
   fi
@@ -165,6 +192,9 @@ reset_fixture() {
   for package in bash coreutils git jq; do
     printf '%s:%s\n' "$([[ $platform == termux ]] && printf pkg || printf pacman)" "$package" >>"$package_db"
   done
+  if [[ $platform != termux ]]; then
+    printf '%s\n' pacman:archlinux-keyring pacman:archlinux-keyring-current >>"$package_db"
+  fi
 }
 
 run_fixture() {
@@ -185,6 +215,8 @@ run_fixture() {
     TEST_PACKAGE_DB="$package_db" \
     TEST_PACKAGE_LOG="$package_log" \
     TEST_FAIL_MANAGER="${TEST_FAIL_MANAGER:-}" \
+    TEST_FAIL_PACMAN_STEP="${TEST_FAIL_PACMAN_STEP:-}" \
+    TEST_PACMAN_NETWORK_FAILURE="${TEST_PACMAN_NETWORK_FAILURE:-0}" \
     TEST_NO_INSTALL_MANAGER="${TEST_NO_INSTALL_MANAGER:-}" \
     "$repo_root/bin/j3w1zsh" "$@" </dev/null
 }
@@ -241,10 +273,39 @@ assert_no_false_record() {
     'all(.packages[]; .manager != $manager or .package != $package)' "$ledger" >/dev/null
 }
 
+assert_arch_refresh_sequence() {
+  local selected="$1" sync_line upgrade_line
+  [[ $(grep -Fxc 'pacman -Sy --needed archlinux-keyring' "$package_log") == 1 ]]
+  [[ $(grep -Fxc "pacman -Su --needed $selected" "$package_log") == 1 ]]
+  sync_line="$(grep -Fnx 'pacman -Sy --needed archlinux-keyring' "$package_log" | cut -d: -f1)"
+  upgrade_line="$(grep -Fnx "pacman -Su --needed $selected" "$package_log" | cut -d: -f1)"
+  ((sync_line < upgrade_line))
+  if grep -Eq '^pacman -Syy|^pacman -Syu|^pacman -Suu' "$package_log"; then
+    printf 'Explicit Arch refresh used forced database refresh, a combined transaction, or downgrade semantics.\n' >&2
+    exit 1
+  fi
+  if grep -E '^pacman -Sy( |$)' "$package_log" | grep -Fvx 'pacman -Sy --needed archlinux-keyring' >/dev/null; then
+    printf 'Explicit Arch refresh used an unsupported standalone sync transaction.\n' >&2
+    exit 1
+  fi
+}
+
+selected_fixture_packages='bash coreutils git jq pacman-target'
+
+mapfile -t standalone_sync_sites < <(rg -n 'j3w1zsh_run sudo pacman -Sy( |")' "$repo_root/scripts" --glob '*.sh')
+[[ ${#standalone_sync_sites[@]} == 1 ]]
+[[ ${standalone_sync_sites[0]} == *'j3w1zsh_run sudo pacman -Sy --needed archlinux-keyring'* ]]
+if rg -n 'pacman -Syy' "$repo_root/scripts" --glob '*.sh' >/dev/null; then
+  printf 'Routine implementation contains a forced Pacman database refresh.\n' >&2
+  exit 1
+fi
+
 # One aggregate phase reconciles all three typed package actions exactly once.
 reset_fixture wsl
 success_output="$(run_fixture wsl install --preset "$preset" --packages-only --force --yes --plain)"
 [[ $(grep -c '^\[+\] Phase 20-packages$' <<<"$success_output") == 1 ]]
+assert_arch_refresh_sequence "$selected_fixture_packages"
+grep -Fxq 'pacman-keyring skipped current' "$package_log"
 [[ $(grep -Fc 'pacman -Q -- pacman-target' "$package_log") == 2 ]]
 grep -Fxq 'pacman:pacman-target' "$package_db"
 grep -Fxq 'npm_global:npm-target' "$package_db"
@@ -264,7 +325,8 @@ if grep -q 'Skipping completed phase: 20-packages' <<<"$rerun_output"; then
   printf 'Explicit package refresh skipped a completed phase marker.\n' >&2
   exit 1
 fi
-grep -Fq 'pacman -Syu --needed bash coreutils git jq pacman-target' "$package_log"
+assert_arch_refresh_sequence "$selected_fixture_packages"
+grep -Fxq 'pacman-keyring skipped current' "$package_log"
 grep -Fq 'npm install --global npm-target' "$package_log"
 grep -Fq 'python -m pip install --user --upgrade pip-target' "$package_log"
 [[ $(sha256sum "$ledger") == "$ledger_before" ]]
@@ -275,13 +337,75 @@ grep -Fxv 'pacman:pacman-target' "$package_db" >"$package_db.next"
 mv -- "$package_db.next" "$package_db"
 : >"$package_log"
 run_fixture wsl install --preset "$preset" --packages-only --yes --plain >/dev/null
-grep -Fq 'pacman -Syu --needed bash coreutils git jq pacman-target' "$package_log"
+assert_arch_refresh_sequence "$selected_fixture_packages"
 grep -Fxq 'pacman:pacman-target' "$package_db"
-if grep -Eq '^pacman -Sy( |$)' "$package_log"; then
-  printf 'Explicit Arch install performed a sync-only partial upgrade.\n' >&2
+[[ $(sha256sum "$ledger") == "$ledger_before" ]]
+
+# A stale native-Arch keyring is reconciled in the first transaction and the
+# full upgrade with every selected target follows immediately.
+reset_fixture arch
+grep -Fxv 'pacman:archlinux-keyring-current' "$package_db" >"$package_db.next"
+mv -- "$package_db.next" "$package_db"
+stale_output="$(run_fixture arch install --preset "$preset" --packages-only --force --yes --plain)"
+[[ $(grep -c '^\[+\] Phase 20-packages$' <<<"$stale_output") == 1 ]]
+assert_arch_refresh_sequence "$selected_fixture_packages"
+grep -Fxq 'pacman-keyring upgraded first' "$package_log"
+grep -Fxq 'pacman:archlinux-keyring-current' "$package_db"
+grep -Fxq 'pacman:pacman-target' "$package_db"
+[[ -f $phase_marker ]]
+
+# Dry-run describes the bounded keyring-first sequence without executing a
+# Pacman command or writing package state.
+reset_fixture wsl
+dry_run_json="$(run_fixture wsl install --preset "$preset" --packages-only --force --yes --dry-run --json)"
+jq -e '
+  .status == "ok" and .data.dry_run == true and
+  (.data.actions[] | select(.id == "pacman-packages") | .reason |
+    contains("run pacman -Sy --needed archlinux-keyring, then immediately run pacman -Su --needed"))
+' <<<"$dry_run_json" >/dev/null
+[[ ! -s $package_log && ! -e $phase_marker && ! -e $ledger ]]
+
+# Failure of the keyring transaction stops before the full upgrade, package
+# provenance, phase completion, and every later phase.
+reset_fixture wsl
+set +e
+TEST_FAIL_PACMAN_STEP=keyring run_fixture wsl install --preset "$preset" --force --yes --plain >"$test_root/keyring-failure.out" 2>&1
+keyring_failure_result=$?
+set -e
+[[ $keyring_failure_result == 41 ]]
+grep -Fxq 'pacman -Sy --needed archlinux-keyring' "$package_log"
+if grep -Eq '^pacman -Su( |$)|^npm install|^python -m pip install' "$package_log"; then
+  printf 'Keyring failure continued into a later package transaction.\n' >&2
   exit 1
 fi
-[[ $(sha256sum "$ledger") == "$ledger_before" ]]
+[[ ! -e $phase_marker && ! -e $ledger ]]
+[[ ! -e $fixture_home/.local/state/j3w1zsh/phases/30-shell.json ]]
+[[ ! -e $fixture_home/.local/state/j3w1zsh/phases/90-verify.json ]]
+
+# A retrieval timeout in the full-upgrade transaction remains a network error,
+# not a signing diagnosis. It stops the phase after the successful keyring
+# preflight, and the same package phase is resumable on retry.
+reset_fixture wsl
+set +e
+TEST_PACMAN_NETWORK_FAILURE=1 run_fixture wsl install --preset "$preset" --force --yes --plain >"$test_root/network-failure.out" 2>&1
+network_failure_result=$?
+set -e
+[[ $network_failure_result == 42 ]]
+assert_arch_refresh_sequence "$selected_fixture_packages"
+grep -q 'failed retrieving file.*Operation too slow' "$test_root/network-failure.out"
+grep -q 'failed to commit transaction (failed to retrieve some files)' "$test_root/network-failure.out"
+if grep -Eqi 'unknown trust|invalid signature|keyring (failure|error)|signing failure' "$test_root/network-failure.out"; then
+  printf 'Network retrieval failure was misclassified as a signing or keyring failure.\n' >&2
+  exit 1
+fi
+[[ ! -e $phase_marker && ! -e $ledger ]]
+[[ ! -e $fixture_home/.local/state/j3w1zsh/phases/30-shell.json ]]
+[[ ! -e $fixture_home/.local/state/j3w1zsh/phases/90-verify.json ]]
+: >"$package_log"
+retry_output="$(run_fixture wsl install --preset "$preset" --packages-only --force --yes --plain)"
+assert_arch_refresh_sequence "$selected_fixture_packages"
+[[ $(grep -c '^\[+\] Phase 20-packages$' <<<"$retry_output") == 1 && -f $phase_marker ]]
+jq -e '.packages[] | select(.manager=="pacman" and .package=="pacman-target" and .installed_by_j3w1zsh==true)' "$ledger" >/dev/null
 
 # Package-free and package-only selection retain their exact boundaries.
 reset_fixture wsl
@@ -391,7 +515,7 @@ env \
     j3w1zsh_install_package_set pip_user "$(j3w1zsh_packages_for_manager_json pip_user)"
   '
 grep -Fq 'pacman -S --needed pacman-target' "$package_log"
-if grep -Eq '^pacman -Syu |^pkg upgrade ' "$package_log"; then
+if grep -Eq '^pacman -S(y|u) |^pkg upgrade ' "$package_log"; then
   printf 'Product update reconciliation performed a rolling full refresh.\n' >&2
   exit 1
 fi
@@ -413,7 +537,7 @@ set -e
 grep -q 'exact Corepack shims' "$test_root/collision.out"
 [[ -L $system_root/usr/bin/pnpm && -L $system_root/usr/bin/pnpx && ! -e $phase_marker ]]
 [[ -f $fixture_home/.local/state/j3w1zsh/manual/pacman-pnpm-corepack-collision.json ]]
-if grep -Eq '^pacman -(S|Syu) ' "$package_log" || grep -q '^corepack ' "$package_log"; then
+if grep -Eq '^pacman -S(y|u)? ' "$package_log" || grep -q '^corepack ' "$package_log"; then
   printf 'Known collision invoked Pacman acquisition or Corepack automatically.\n' >&2
   exit 1
 fi
@@ -427,7 +551,7 @@ set -e
 [[ $ambiguous_result == 21 ]]
 grep -q 'does not match the exact Corepack-owned shim contract' "$test_root/ambiguous.out"
 grep -qx 'owner-authored collision' "$system_root/usr/bin/pnpx"
-if grep -Eq '^pacman -(S|Syu) ' "$package_log"; then
+if grep -Eq '^pacman -S(y|u)? ' "$package_log"; then
   printf 'Ambiguous collision invoked Pacman acquisition.\n' >&2
   exit 1
 fi
@@ -448,7 +572,8 @@ printf 'pacman pnpm executable\n' >"$system_root/usr/bin/pnpm"
 printf 'pacman pnpx executable\n' >"$system_root/usr/bin/pnpx"
 healthy_refresh="$(run_fixture wsl install --preset "$collision_preset" --packages-only --yes --plain)"
 [[ $(grep -c '^\[+\] Phase 20-packages$' <<<"$healthy_refresh") == 1 ]]
-grep -Fq 'pacman -Syu --needed bash coreutils git jq pnpm' "$package_log"
+grep -Fq 'pacman -Sy --needed archlinux-keyring' "$package_log"
+grep -Fq 'pacman -Su --needed bash coreutils git jq pnpm' "$package_log"
 
 # Repair is explicit, dry-runnable, exact-targeted, manager-verified, evidence
 # preserving, and leaves every unrelated ledger record unchanged.

@@ -46,7 +46,7 @@ j3w1zsh_build_base_plan() {
     local manager_reason npm_reason pip_reason
     if [[ ${J3W1ZSH_PACKAGE_REFRESH:-0} == 1 ]]; then
       if [[ $manager == pacman ]]; then
-        manager_reason="perform a coherent full Arch upgrade and refresh $(jq length <<<"$manager_packages") selected platform packages"
+        manager_reason="run pacman -Sy --needed archlinux-keyring, then immediately run pacman -Su --needed with $(jq length <<<"$manager_packages") selected platform packages for the coherent full Arch upgrade"
       else
         manager_reason="upgrade Termux and refresh $(jq length <<<"$manager_packages") selected platform packages"
       fi
