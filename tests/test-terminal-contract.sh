@@ -229,8 +229,19 @@ codex_status="$(env HOME="$codex_home" XDG_STATE_HOME="$codex_home/.local/state"
   TEST_CODEX_VERSION_FILE="$codex_version_file" TEST_CODEX_LOG="$codex_log" "$repo_root/bin/j3w1zsh" status --json)"
 jq -e '.status=="ok"' <<<"$codex_status" >/dev/null
 codex_doctor="$(env HOME="$codex_home" XDG_STATE_HOME="$codex_home/.local/state" XDG_CONFIG_HOME="$codex_home/.config" \
-  XDG_CACHE_HOME="$codex_home/.cache" PATH="$codex_home/.local/bin:$PATH" J3W1ZSH_TEST_MODE=1 J3W1ZSH_TEST_PLATFORM=wsl \
-  TEST_CODEX_VERSION_FILE="$codex_version_file" TEST_CODEX_LOG="$codex_log" "$repo_root/bin/j3w1zsh" doctor --json)"
+  XDG_CACHE_HOME="$codex_home/.cache" PATH="$codex_home/.local/bin:$PATH" J3W1ZSH_REPO_ROOT="$repo_root" \
+  J3W1ZSH_TEST_MODE=1 J3W1ZSH_TEST_PLATFORM=wsl TEST_CODEX_VERSION_FILE="$codex_version_file" TEST_CODEX_LOG="$codex_log" \
+  bash -c '
+    set -Eeuo pipefail
+    source "$J3W1ZSH_REPO_ROOT/scripts/lib/core/init.sh"
+    source "$J3W1ZSH_REPO_ROOT/scripts/lib/presets.sh"
+    source "$J3W1ZSH_REPO_ROOT/scripts/commands/status.sh"
+    J3W1ZSH_OUTPUT_MODE=json
+    export J3W1ZSH_OUTPUT_MODE
+    j3w1zsh_output_init
+    git() { return 0; }
+    j3w1zsh_doctor_command
+  ')"
 jq -e '.status=="ok" and (.data.checks[] | select(.name=="codex") | .ok)==true' <<<"$codex_doctor" >/dev/null
 env \
   HOME="$codex_home" XDG_STATE_HOME="$codex_home/.local/state" XDG_CONFIG_HOME="$codex_home/.config" XDG_CACHE_HOME="$codex_home/.cache" \
