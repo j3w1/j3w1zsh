@@ -46,8 +46,27 @@ list_sessions() {
   tmux list-sessions -F "$format" 2>/dev/null || true
 }
 
+session_target() {
+  local session_name="$1" listed_name session_id
+  if [[ $session_name != *.* ]]; then
+    printf '=%s' "$session_name"
+    return 0
+  fi
+
+  # A dot is tmux target syntax. Resolve the exact machine-readable name to its unambiguous ID.
+  while IFS=$'\t' read -r listed_name session_id; do
+    if [[ $listed_name == "$session_name" && $session_id == \$* ]]; then
+      printf '%s' "$session_id"
+      return 0
+    fi
+  done < <(tmux list-sessions -F $'#{session_name}\t#{session_id}' 2>/dev/null || true)
+  return 1
+}
+
 session_exists() {
-  tmux has-session -t "=$1" 2>/dev/null
+  local target
+  target="$(session_target "$1")" || return 1
+  tmux has-session -t "$target" 2>/dev/null
 }
 
 kill_session() {
@@ -74,7 +93,9 @@ kill_session() {
     return 0
   fi
 
-  tmux kill-session -t "=$session_name"
+  local target
+  target="$(session_target "$session_name")"
+  tmux kill-session -t "$target"
   printf 'Killed tmux session "%s".\n' "$session_name"
 }
 
@@ -93,10 +114,12 @@ attach_session() {
     printf 'tma: session disappeared before it could be attached: %s\n' "$session_name" >&2
     return 1
   }
+  local target
+  target="$(session_target "$session_name")"
   if [[ -n ${TMUX:-} ]]; then
-    exec tmux switch-client -t "=$session_name"
+    exec tmux switch-client -t "$target"
   fi
-  exec tmux attach-session -t "=$session_name"
+  exec tmux attach-session -t "$target"
 }
 
 case "${1:-}" in

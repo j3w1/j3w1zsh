@@ -25,6 +25,7 @@ cp "$repo_root/tests/fixtures/fake-tmux.sh" "$apply_fake_tmux"
 chmod +x "$apply_fake_tmux"
 
 tma="$repo_root/dotfiles/local-bin/.local/bin/tma"
+fake_dotted_target="\$1"
 help_output="$(PATH="$test_root/bin:$PATH" "$tma" --help)"
 grep -q 'Ctrl-X' <<<"$help_output"
 grep -q 'confirmation' <<<"$help_output"
@@ -43,8 +44,10 @@ grep -Fqx $'second.attached\t1 window(s)\tattached\tcreated now' <<<"$session_ro
 
 PATH="$test_root/bin:$PATH" "$tma" ops_session
 grep -qx 'attach =ops_session' "$TMA_FAKE_LOG"
+PATH="$test_root/bin:$PATH" "$tma" second.attached
+grep -Fqx "attach $fake_dotted_target" "$TMA_FAKE_LOG"
 TMUX=active PATH="$test_root/bin:$PATH" "$tma" second.attached
-grep -qx 'switch =second.attached' "$TMA_FAKE_LOG"
+grep -Fqx "switch $fake_dotted_target" "$TMA_FAKE_LOG"
 
 cat >"$test_root/bin/fzf" <<'EOF'
 #!/usr/bin/env bash
@@ -94,7 +97,7 @@ TMA_FAKE_FZF_MODE=select TMA_FAKE_FZF_SELECTION=j3w1zsh-smoke \
 grep -qx 'attach =j3w1zsh-smoke' "$TMA_FAKE_LOG"
 TMA_FAKE_FZF_MODE=select TMA_FAKE_FZF_SELECTION=second.attached \
   timeout 20 script -qefc "$interactive_wrapper" /dev/null >/dev/null
-grep -qx 'attach =second.attached' "$TMA_FAKE_LOG"
+grep -Fqx "attach $fake_dotted_target" "$TMA_FAKE_LOG"
 
 log_lines_before="$(wc -l <"$TMA_FAKE_LOG")"
 TMA_FAKE_FZF_MODE=cancel TMA_FAKE_FZF_SELECTION=j3w1zsh-smoke \
@@ -103,7 +106,7 @@ TMA_FAKE_FZF_MODE=cancel TMA_FAKE_FZF_SELECTION=j3w1zsh-smoke \
 
 TMA_FAKE_FZF_MODE=kill TMA_FAKE_FZF_SELECTION=second.attached \
   timeout 20 script -qefc "$interactive_wrapper" /dev/null >/dev/null
-grep -qx 'kill =second.attached' "$TMA_FAKE_LOG"
+grep -Fqx "kill $fake_dotted_target" "$TMA_FAKE_LOG"
 if awk -F '\t' '$1 == "second.attached" { found=1 } END { exit !found }' "$TMA_FAKE_STATE"; then
   printf 'Ctrl-X did not kill the exact selected session.\n' >&2
   exit 1
@@ -142,8 +145,26 @@ EOF
     printf 'Real tmux serialized literal backslash-t characters.\n' >&2
     exit 1
   fi
-  grep -q $'^real.one\t1 window(s)\tdetached\tcreated ' <<<"$real_rows"
-  grep -q $'^real-two\t1 window(s)\tdetached\tcreated ' <<<"$real_rows"
+  real_names="$("$real_tmux" -L "$real_tmux_socket" list-sessions -F '#{session_name}')"
+  grep -Fq $'real-two\t1 window(s)\tdetached\tcreated ' <<<"$real_rows"
+  if grep -Fxq 'real.one' <<<"$real_names"; then
+    grep -Fq $'real.one\t1 window(s)\tdetached\tcreated ' <<<"$real_rows"
+    printf 'n' | PATH="$real_bin:$PATH" "$tma" --kill real.one >/dev/null
+    printf 'y' | PATH="$real_bin:$PATH" "$tma" --kill real.one >/dev/null
+    real_names="$("$real_tmux" -L "$real_tmux_socket" list-sessions -F '#{session_name}')"
+    if grep -Fxq 'real.one' <<<"$real_names"; then
+      printf 'tma did not kill the exact dotted real-tmux session.\n' >&2
+      exit 1
+    fi
+  else
+    grep -Fxq 'real_one' <<<"$real_names"
+    grep -Fq $'real_one\t1 window(s)\tdetached\tcreated ' <<<"$real_rows"
+    if printf 'n' | PATH="$real_bin:$PATH" "$tma" --kill real.one >/dev/null 2>&1; then
+      printf 'tma accepted a dotted name that this tmux normalized to an underscore.\n' >&2
+      exit 1
+    fi
+  fi
+  "$real_tmux" -L "$real_tmux_socket" has-session -t '=real-two'
 fi
 
 printf 'tma real-tab serialization, picker parsing, cancellation, multi-client attach, and exact confirmed-kill tests passed.\n'
