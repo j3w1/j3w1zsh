@@ -47,13 +47,20 @@ list_sessions() {
 }
 
 session_target() {
-  local session_name="$1"
-  if [[ $session_name == *.* ]]; then
-    # Terminate the session component so tmux does not parse an allowed dot as a pane separator.
-    printf '=%s:' "$session_name"
-  else
+  local session_name="$1" listed_name session_id
+  if [[ $session_name != *.* ]]; then
     printf '=%s' "$session_name"
+    return 0
   fi
+
+  # A dot is tmux target syntax. Resolve the exact machine-readable name to its unambiguous ID.
+  while IFS=$'\t' read -r listed_name session_id; do
+    if [[ $listed_name == "$session_name" && $session_id == \$* ]]; then
+      printf '%s' "$session_id"
+      return 0
+    fi
+  done < <(tmux list-sessions -F $'#{session_name}\t#{session_id}' 2>/dev/null || true)
+  return 1
 }
 
 session_exists() {
