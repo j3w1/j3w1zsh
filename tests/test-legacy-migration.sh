@@ -9,6 +9,7 @@ fixture_bin="$test_root/bin"
 mkdir -p "$fixture_bin"
 [[ $(grep -Ec "^[[:space:]]*rm -rf -- \"\\\$path\"$" "$migration") == 1 ]]
 [[ $(grep -Ec '^[[:space:]]*rm -r[[:space:]]' "$migration") == 0 ]]
+[[ $(grep -Fc 'MIGRATION_REMOTE="https://github.com/j3w1/j3w1zsh.git"' "$migration") == 1 ]]
 for fixture_command in gh nvim tmux powershell.exe; do
   cat >"$fixture_bin/$fixture_command" <<'EOF'
 #!/usr/bin/env bash
@@ -53,6 +54,16 @@ create_old_home() {
   mkdir -p "$fixture_home/projects" "$fixture_home/.local/bin" "$fixture_home/.config/nvim"
   git clone -q "$old_remote" "$fixture_home/projects/bloody-writer"
   ln -s "$fixture_home/projects/bloody-writer/bin/bloody-writer" "$fixture_home/.local/bin/bloody-writer"
+  printf '# regular partial zshrc\n' >"$fixture_home/.zshrc"
+  printf '# regular partial tmux\n' >"$fixture_home/.tmux.conf"
+  printf 'regular partial nvim\n' >"$fixture_home/.config/nvim/init.lua"
+}
+
+create_historical_termux_home() {
+  local fixture_home="$1"
+  mkdir -p "$fixture_home/.local/bin" "$fixture_home/.config/nvim"
+  git clone -q "$old_remote" "$fixture_home/bloody-writer"
+  ln -s "$fixture_home/bloody-writer/bin/bloody-writer" "$fixture_home/.local/bin/bloody-writer"
   printf '# regular partial zshrc\n' >"$fixture_home/.zshrc"
   printf '# regular partial tmux\n' >"$fixture_home/.tmux.conf"
   printf 'regular partial nvim\n' >"$fixture_home/.config/nvim/init.lua"
@@ -210,18 +221,85 @@ git -C "$new_seed" commit -q -m 'fixture: advance canonical main'
 new_main_oid="$(git -C "$new_seed" rev-parse HEAD)"
 git -C "$new_seed" push -q "$new_remote" main
 
-# An unrelated source origin fails closed before target or state mutation.
-wrong_origin_home="$test_root/wrong-origin-home"
-create_old_home "$wrong_origin_home"
-git -C "$wrong_origin_home/projects/bloody-writer" remote set-url origin https://example.invalid/unrelated.git
-set +e
-wrong_origin_output="$(run_migration "$wrong_origin_home" --target-ref "$new_oid" --expected-commit "$new_oid" \
-  --source "$wrong_origin_home/projects/bloody-writer" --dry-run 2>&1)"
-wrong_origin_result=$?
-set -e
-[[ $wrong_origin_result == 1 ]]
-grep -q 'neither the former nor renamed canonical repository' <<<"$wrong_origin_output"
-[[ ! -e $wrong_origin_home/j3w1zsh && ! -e $wrong_origin_home/.local/state/j3w1zsh ]]
+# The source identity contract is an exact offline allowlist. The historical, later-owner, and
+# canonical repository forms are accepted without normalizing the preserved source checkout.
+accepted_origin_index=0
+while IFS= read -r accepted_origin; do
+  ((accepted_origin_index += 1))
+  accepted_origin_home="$test_root/accepted-origin-$accepted_origin_index"
+  create_historical_termux_home "$accepted_origin_home"
+  accepted_origin_source="$accepted_origin_home/bloody-writer"
+  git -C "$accepted_origin_source" remote set-url origin "$accepted_origin"
+  accepted_head_before="$(git -C "$accepted_origin_source" rev-parse HEAD)"
+  accepted_tree_before="$(git -C "$accepted_origin_source" rev-parse 'HEAD^{tree}')"
+  accepted_refs_before="$(git -C "$accepted_origin_source" show-ref)"
+  accepted_status_before="$(git -C "$accepted_origin_source" status --short --branch)"
+  accepted_config_before="$(sha256sum "$accepted_origin_source/.git/config" | awk '{print $1}')"
+  accepted_origin_output="$(run_termux_migration "$accepted_origin_home" --target-ref "$new_oid" \
+    --expected-commit "$new_oid" --source "$accepted_origin_source" --dry-run)"
+  grep -q 'classification: exact-known' <<<"$accepted_origin_output"
+  grep -q 'no state, checkout, trust record, package, Git ref, or host configuration was changed' \
+    <<<"$accepted_origin_output"
+  [[ $(git -C "$accepted_origin_source" remote get-url origin) == "$accepted_origin" ]]
+  [[ $(git -C "$accepted_origin_source" rev-parse HEAD) == "$accepted_head_before" ]]
+  [[ $(git -C "$accepted_origin_source" rev-parse 'HEAD^{tree}') == "$accepted_tree_before" ]]
+  [[ $(git -C "$accepted_origin_source" show-ref) == "$accepted_refs_before" ]]
+  [[ $(git -C "$accepted_origin_source" status --short --branch) == "$accepted_status_before" ]]
+  [[ $(sha256sum "$accepted_origin_source/.git/config" | awk '{print $1}') == "$accepted_config_before" ]]
+  [[ ! -e $accepted_origin_home/j3w1zsh && ! -e $accepted_origin_home/.local/state/j3w1zsh ]]
+done <<'EOF'
+https://github.com/1w3j/bloody-writer.git
+https://github.com/1w3j/bloody-writer
+git@github.com:1w3j/bloody-writer.git
+https://github.com/j3w1/bloody-writer.git
+https://github.com/j3w1/bloody-writer
+git@github.com:j3w1/bloody-writer.git
+https://github.com/j3w1/j3w1zsh.git
+https://github.com/j3w1/j3w1zsh
+git@github.com:j3w1/j3w1zsh.git
+EOF
+
+# Lookalikes, malformed spellings, the never-historical owner/name combination, and an unrelated
+# GitHub redirect all fail before target/state mutation or any network resolution.
+rejected_origin_index=0
+while IFS= read -r rejected_origin; do
+  ((rejected_origin_index += 1))
+  rejected_origin_home="$test_root/rejected-origin-$rejected_origin_index"
+  create_historical_termux_home "$rejected_origin_home"
+  rejected_origin_source="$rejected_origin_home/bloody-writer"
+  git -C "$rejected_origin_source" remote set-url origin "$rejected_origin"
+  rejected_head_before="$(git -C "$rejected_origin_source" rev-parse HEAD)"
+  rejected_tree_before="$(git -C "$rejected_origin_source" rev-parse 'HEAD^{tree}')"
+  rejected_config_before="$(sha256sum "$rejected_origin_source/.git/config" | awk '{print $1}')"
+  set +e
+  rejected_origin_output="$(J3W1ZSH_TEST_REAL_GIT="$real_git" \
+    J3W1ZSH_TEST_DOCTOR_NETWORK_LOG="$doctor_network_log" PATH="$doctor_git_bin:$PATH" \
+    run_termux_migration "$rejected_origin_home" --target-ref "$new_oid" --expected-commit "$new_oid" \
+      --source "$rejected_origin_source" 2>&1)"
+  rejected_origin_result=$?
+  set -e
+  [[ $rejected_origin_result == 1 ]]
+  grep -q 'neither the former nor renamed canonical repository' <<<"$rejected_origin_output"
+  [[ $(git -C "$rejected_origin_source" remote get-url origin) == "$rejected_origin" ]]
+  [[ $(git -C "$rejected_origin_source" rev-parse HEAD) == "$rejected_head_before" ]]
+  [[ $(git -C "$rejected_origin_source" rev-parse 'HEAD^{tree}') == "$rejected_tree_before" ]]
+  [[ $(sha256sum "$rejected_origin_source/.git/config" | awk '{print $1}') == "$rejected_config_before" ]]
+  [[ ! -e $rejected_origin_home/j3w1zsh && ! -e $rejected_origin_home/.local/state/j3w1zsh ]]
+done <<'EOF'
+https://github.com/1w3j/j3w1zsh.git
+https://github.com/not-1w3j/bloody-writer.git
+https://github.com/1w3j/not-bloody-writer.git
+https://github.com/1w3j/bloody-writer-copy.git
+https://github.com/j3w1/j3w1zsh-lookalike.git
+https://github.com/1w3j/bloody-writer.git/
+https://github.com/1w3j/bloody-writer.git?redirect=1
+https://github.com/1w3j/bloody-writer.git#fragment
+https://github.com/1w3j//bloody-writer.git
+git@github.com:1w3j/bloody-writer
+ssh://git@github.com/1w3j/bloody-writer.git
+https://github.com/twitter/bootstrap.git
+EOF
+[[ ! -e $doctor_network_log ]]
 
 # Required post-rename partial state: renamed origin; only the former CLI link; regular dotfiles; no markers, helper, or host fragment.
 partial_home="$test_root/partial-home"
@@ -366,7 +444,12 @@ run_migration "$resume_home" --resume | grep -q 'Migration is already complete'
 
 # Native Termux migration translates only known settings and never requires privilege.
 termux_home="$test_root/termux-home"
-create_old_home "$termux_home"
+create_historical_termux_home "$termux_home"
+termux_source="$termux_home/bloody-writer"
+git -C "$termux_source" remote set-url origin https://github.com/1w3j/bloody-writer.git
+termux_source_head="$(git -C "$termux_source" rev-parse HEAD)"
+termux_source_tree="$(git -C "$termux_source" rev-parse 'HEAD^{tree}')"
+termux_source_config="$(sha256sum "$termux_source/.git/config" | awk '{print $1}')"
 mkdir -p "$termux_home/.config/bloody-writer"
 cat >"$termux_home/.config/bloody-writer/settings.zsh" <<'EOF'
 export BLOODY_WRITER_DOCUMENTS='/data/data/com.termux/files/home/storage/shared/Documents'
@@ -374,7 +457,7 @@ export BLOODY_WRITER_WSL_HOST='100.64.0.2'
 export BLOODY_WRITER_WSL_USER='legacy-user'
 export BLOODY_WRITER_WSL_TMA='/home/legacy-user/.local/bin/tma'
 EOF
-run_termux_migration "$termux_home" --target-ref "$new_oid" --expected-commit "$new_oid" --source "$termux_home/projects/bloody-writer" >/dev/null
+run_termux_migration "$termux_home" --target-ref "$new_oid" --expected-commit "$new_oid" --source "$termux_source" >/dev/null
 grep -q '^export J3W1ZSH_EDIT_ROOT=' "$termux_home/.config/j3w1zsh/settings.zsh"
 grep -q '^export J3W1ZSH_REMOTE_HOST=' "$termux_home/.config/j3w1zsh/settings.zsh"
 grep -q '^export J3W1ZSH_REMOTE_USER=' "$termux_home/.config/j3w1zsh/settings.zsh"
@@ -385,6 +468,13 @@ env HOME="$termux_home" XDG_CONFIG_HOME="$termux_home/.config" XDG_STATE_HOME="$
 [[ $(git -C "$termux_home/j3w1zsh" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}') == origin/main ]]
 [[ $(git -C "$termux_home/j3w1zsh" rev-parse --verify refs/remotes/origin/main) == "$new_main_oid" ]]
 [[ $(git -C "$termux_home/j3w1zsh" rev-parse --is-shallow-repository) == false ]]
+termux_recovery="$(find "$termux_home/.local/state/j3w1zsh/migrations" -mindepth 1 -maxdepth 1 -type d | head -n1)"
+termux_preserved_source="$termux_recovery/legacy-active/checkout"
+[[ ! -e $termux_source && -d $termux_preserved_source/.git ]]
+[[ $(git -C "$termux_preserved_source" remote get-url origin) == https://github.com/1w3j/bloody-writer.git ]]
+[[ $(git -C "$termux_preserved_source" rev-parse HEAD) == "$termux_source_head" ]]
+[[ $(git -C "$termux_preserved_source" rev-parse 'HEAD^{tree}') == "$termux_source_tree" ]]
+[[ $(sha256sum "$termux_preserved_source/.git/config" | awk '{print $1}') == "$termux_source_config" ]]
 
 # Reproduce the first real WSL result exactly: clean local main at the exact candidate, branch
 # configuration pointing to origin/main, a shallow object store, and no remote-tracking ref.

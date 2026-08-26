@@ -14,7 +14,7 @@ Never execute a mutable `main` URL. Download the script and checksum from the im
 
 The migration discovers complete, partial, absent, generated-drift, authored-dirty, staged, untracked, local-commit, and divergent states. It creates a mode-0700 recovery root, inventory, binary patches, untracked-byte copies, unique-ref bundle, and pre-cutover path snapshots without printing content.
 
-The preserved source checkout may still use the former repository URL or may already use the renamed canonical `j3w1/j3w1zsh` URL. Every unrelated origin is rejected before target or state mutation.
+The former repository URL includes the exact early-install identity `https://github.com/1w3j/bloody-writer.git`. The preserved source checkout may use that historical `1w3j/bloody-writer` identity, its exact HTTPS no-`.git` or SSH form, the corresponding later-owner `j3w1/bloody-writer` forms, or the renamed canonical `j3w1/j3w1zsh` forms. These historical URLs identify the source only: acquisition still uses only `https://github.com/j3w1/j3w1zsh.git`. Redirect following, owner or repository guessing, suffix matching, malformed URLs, and every unrelated origin are rejected before target or state mutation. Migration does not require or perform a source-origin rewrite.
 
 Dry-run ref resolution and interrupted-workspace comparison use only script-created temporary directories with exact parent/name validation and an ownership marker. Cleanup is non-interactive even for write-protected Git objects. These ephemeral directories are distinct from permanent migration recovery generations, which are never removed automatically.
 
