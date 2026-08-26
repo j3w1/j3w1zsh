@@ -17,11 +17,13 @@ list-sessions)
   ;;
 has-session)
   target="${3#=}"
+  target="${target%:}"
   awk -F '\t' -v target="$target" '$1 == target { found=1 } END { exit !found }' "$TMA_FAKE_STATE"
   ;;
 kill-session)
   printf 'kill %s\n' "$3" >>"$TMA_FAKE_LOG"
   target="${3#=}"
+  target="${target%:}"
   awk -F '\t' -v target="$target" '$1 != target' "$TMA_FAKE_STATE" >"$TMA_FAKE_STATE.next"
   mv -- "$TMA_FAKE_STATE.next" "$TMA_FAKE_STATE"
   ;;
