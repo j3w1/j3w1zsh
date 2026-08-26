@@ -81,7 +81,8 @@ j3w1zsh_build_base_plan() {
     fi
     if j3w1zsh_preset_has_feature neovim; then
       j3w1zsh_plan_add neovim 60-neovim file-reconciliation preset "" "$HOME/.local/state/nvim/j3w1zsh" \
-        "reconcile the reviewed Neovim runtime lock and spell files" false false "" true "headless Neovim configuration validates"
+        "restore every managed Neovim plugin to the reviewed runtime lock and reconcile spell files" false false "" true \
+        "runtime lock and every managed plugin Git HEAD match the reviewed tracked lock"
     fi
     if [[ $J3W1ZSH_NO_PACKAGES != 1 ]] && j3w1zsh_preset_has_feature codex && [[ $J3W1ZSH_PLATFORM == wsl ]]; then
       j3w1zsh_plan_add codex 70-codex host-adapter preset "" "$HOME/.codex" \
@@ -92,7 +93,8 @@ j3w1zsh_build_base_plan() {
         "configure user-owned Git and GitHub access interactively" false true github-login true "Git identity and GitHub authentication are reported"
     fi
     j3w1zsh_plan_add verify 90-verify verification core "" "" \
-      "verify every selected action before recording completion" false false "" false "selected command, links, theme, tmux, Neovim, and WSL interop checks pass"
+      "verify every selected action before recording completion" false false "" false \
+      "selected command, links, theme, tmux, exact Neovim lock and plugin HEADs, and WSL interop checks pass"
   fi
 }
 

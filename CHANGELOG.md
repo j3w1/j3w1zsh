@@ -28,6 +28,10 @@ All notable changes to `j3w1zsh` are documented here.
 
 ### Changed
 
+- Neovim reconciliation now uses lazy.nvim's lock-directed restore path and independently proves
+  semantic runtime-lock equality plus every managed plugin Git HEAD before phases 60 or 90 can
+  complete. Explicit package-enabled installs rerun this bounded reconciliation, while the
+  maintainer-only lock-update workflow remains the intentional path to newer reviewed commits.
 - Explicit package-enabled installs now refresh the complete selected rolling software set. Arch
   and WSL use the supported keyring-first sequence: synchronize databases and reconcile
   `archlinux-keyring`, then immediately run the full upgrade with every selected Pacman target as

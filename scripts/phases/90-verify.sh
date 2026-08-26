@@ -2,6 +2,7 @@
 
 phase_90_verify() {
   [[ $J3W1ZSH_TEST_MODE != 1 || ${J3W1ZSH_TEST_VERIFY_ADAPTERS:-0} == 1 ]] || return 0
+  j3w1zsh_clear_phase 90-verify
   local required=(bash git jq)
   j3w1zsh_preset_has_feature shell && required+=(zsh)
   j3w1zsh_preset_has_feature tmux && required+=(tmux)
@@ -35,7 +36,9 @@ phase_90_verify() {
   fi
   if j3w1zsh_preset_has_feature neovim; then
     [[ -L $HOME/.config/nvim ]] || j3w1zsh_die "$HOME/.config/nvim is not managed by j3w1zsh."
-    env XDG_CONFIG_HOME="$HOME/.config" nvim --headless "+lua require('j3w1zsh.theme').setup()" +qa
+    j3w1zsh_neovim_verify_runtime
+    env J3W1ZSH_NEOVIM_VERIFY=1 XDG_CONFIG_HOME="$HOME/.config" \
+      nvim --headless "+lua require('j3w1zsh.theme').setup()" +qa
   fi
   if j3w1zsh_preset_has_feature tmux || j3w1zsh_preset_has_feature neovim; then
     [[ -x $HOME/.local/bin/j3w1zsh-clipboard-copy ]] || j3w1zsh_die "The clipboard adapter is missing."

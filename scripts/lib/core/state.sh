@@ -36,6 +36,11 @@ j3w1zsh_input_digest() {
       [[ -f $package_overrides && ! -L $package_overrides ]] && sha256sum "$package_overrides"
       ;;
     esac
+    case "$phase" in
+    60-neovim | 90-verify)
+      sha256sum "$(j3w1zsh_neovim_tracked_lock_path)"
+      ;;
+    esac
     [[ -n $J3W1ZSH_SELECTED_WORKSPACE && -f $J3W1ZSH_SELECTED_WORKSPACE ]] && sha256sum "$J3W1ZSH_SELECTED_WORKSPACE"
   } | sha256sum | awk '{print $1}'
 }
