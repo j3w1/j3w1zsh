@@ -104,7 +104,7 @@ j3w1zsh_plan_selects_phase() {
 j3w1zsh_phase_requires_rolling_refresh() {
   [[ ${J3W1ZSH_PACKAGE_REFRESH:-0} == 1 ]] || return 1
   case "$1" in
-  20-packages | 70-codex | 90-verify) return 0 ;;
+  20-packages | 60-neovim | 70-codex | 90-verify) return 0 ;;
   *) return 1 ;;
   esac
 }
