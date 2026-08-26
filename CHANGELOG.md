@@ -28,6 +28,16 @@ All notable changes to `j3w1zsh` are documented here.
 
 ### Changed
 
+- Explicit package-enabled installs now refresh the complete selected rolling software set: one
+  coherent Arch full-upgrade transaction, supported Termux upgrade/install, current npm globals,
+  upgraded Python user packages, and current stable official Codex on WSL. Completed package,
+  Codex, and final-verification markers no longer suppress that explicit refresh; unrelated
+  configuration phases remain cached.
+- Codex now separates the checksum-pinned official installer artifact from the desired CLI
+  release, resolves OpenAI's current stable channel during explicit install, verifies the
+  installed result, preserves settings/authentication, and never downgrades a newer valid version.
+  Product source updates and health checks remain network-independent of the stable channel when
+  Codex is already installed.
 - Base installation now validates every typed action and executes each selected aggregate phase
   exactly once. Any phase failure stops before its marker and every later phase.
 - Package transactions now propagate Pacman, `pkg`, npm, and pip failures and require positive

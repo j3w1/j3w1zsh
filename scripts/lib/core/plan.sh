@@ -43,12 +43,26 @@ j3w1zsh_build_base_plan() {
   npm_packages="$(j3w1zsh_packages_for_manager_json npm_global)"
   pip_packages="$(j3w1zsh_packages_for_manager_json pip_user)"
   if [[ $J3W1ZSH_NO_PACKAGES != 1 ]]; then
+    local manager_reason npm_reason pip_reason
+    if [[ ${J3W1ZSH_PACKAGE_REFRESH:-0} == 1 ]]; then
+      if [[ $manager == pacman ]]; then
+        manager_reason="perform a coherent full Arch upgrade and refresh $(jq length <<<"$manager_packages") selected platform packages"
+      else
+        manager_reason="upgrade Termux and refresh $(jq length <<<"$manager_packages") selected platform packages"
+      fi
+      npm_reason="refresh $(jq length <<<"$npm_packages") selected npm globals from their current official distribution tags"
+      pip_reason="upgrade $(jq length <<<"$pip_packages") selected Python user packages"
+    else
+      manager_reason="install newly required platform packages without a full platform upgrade"
+      npm_reason="install newly required npm globals"
+      pip_reason="install newly required Python user packages"
+    fi
     (($(jq length <<<"$manager_packages") == 0)) || j3w1zsh_plan_add "$manager-packages" 20-packages package-operation preset "$manager" "" \
-      "reconcile $(jq length <<<"$manager_packages") required platform packages" "$([[ $manager == pacman ]] && printf true || printf false)" true "" true "every named package is installed"
+      "$manager_reason" "$([[ $manager == pacman ]] && printf true || printf false)" true "" true "every named package is installed and usable"
     (($(jq length <<<"$npm_packages") == 0)) || j3w1zsh_plan_add npm-packages 20-packages package-operation preset npm_global "" \
-      "reconcile $(jq length <<<"$npm_packages") required npm packages" "$([[ $J3W1ZSH_PLATFORM == termux ]] && printf false || printf true)" true "" true "every named package is installed"
+      "$npm_reason" "$([[ $J3W1ZSH_PLATFORM == termux ]] && printf false || printf true)" true "" true "every named package is installed and usable"
     (($(jq length <<<"$pip_packages") == 0)) || j3w1zsh_plan_add python-packages 20-packages package-operation preset pip_user "" \
-      "reconcile $(jq length <<<"$pip_packages") required Python user packages" false false "" true "every named package is installed"
+      "$pip_reason" false false "" true "every named package is installed and usable"
   else
     j3w1zsh_plan_add package-availability 20-packages verification preset "" "" \
       "report selected package prerequisites without acquiring them" false false "" false \
@@ -71,7 +85,7 @@ j3w1zsh_build_base_plan() {
     fi
     if [[ $J3W1ZSH_NO_PACKAGES != 1 ]] && j3w1zsh_preset_has_feature codex && [[ $J3W1ZSH_PLATFORM == wsl ]]; then
       j3w1zsh_plan_add codex 70-codex host-adapter preset "" "$HOME/.codex" \
-        "install the pinned official Codex CLI without replacing user settings" false true codex-login true "official CLI version and user-owned login state are reported"
+        "refresh Codex CLI from OpenAI's current stable channel without replacing user settings or downgrading a newer valid version" false true codex-login true "an installed usable stable Codex CLI and user-owned login state are reported"
     fi
     if j3w1zsh_preset_has_feature github; then
       j3w1zsh_plan_add github 80-github host-adapter preset "" "$HOME/.ssh" \

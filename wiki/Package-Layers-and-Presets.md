@@ -17,6 +17,8 @@ The atomic provenance ledger records manager, package, declaring layers, whether
 
 The platform manager, npm, and user-level Python sets are actions in one aggregate `20-packages` phase. That phase executes exactly once. A failed Pacman, `pkg`, npm, or pip command stops immediately; every required package must then pass an exact manager query before any provenance for that manager set is recorded. A failed or unverified set creates no phase marker and no later base phase runs.
 
+On every explicit package-enabled `install`, phase 20 refreshes the complete selected rolling set even if its prior marker is current. Arch/WSL uses one confirmed `pacman -Syu --needed` transaction with the complete selected Pacman list. Termux performs its supported `pkg upgrade` followed by complete selected-package reconciliation. npm globals are installed again from their current distribution tags, and Python user packages use `pip install --user --upgrade`. A newer valid manager-owned version is healthy; repository references do not trigger a downgrade.
+
 `j3w1zsh packages prune --dry-run` lists candidates and reasons. Removal requires proof of j3w1zsh ownership, no active declaration, current package-manager identity, and confirmation. It removes only exact names and never performs recursive dependency cleanup. Ambiguity means preserve. Update never invokes prune.
 
 ## Corepack and Pacman `pnpm`
@@ -27,7 +29,7 @@ Pacman's `pnpm` package can conflict with `/usr/bin/pnpm` and `/usr/bin/pnpx` sh
 sudo corepack disable pnpm --install-directory /usr/bin
 ```
 
-j3w1zsh never runs that command, deletes a shim, or overwrites the collision automatically. Verify both shim paths are absent, then rerun phase 20. Any partial, authored, differently owned, or otherwise ambiguous path state exits 21 unchanged.
+j3w1zsh never runs that command, deletes a shim, or overwrites the collision automatically. Verify both shim paths are absent, then rerun phase 20. Once Pacman owns both exact `pnpm` paths through package `pnpm`, later rolling refreshes recognize that healthy state. Any partial, authored, differently owned, or otherwise ambiguous path state exits 21 unchanged.
 
 ## Repairing a disproved ownership claim
 
@@ -43,4 +45,4 @@ j3w1zsh packages repair-provenance \
 
 Review the exact candidates, then rerun with `--yes`. The command revalidates the ledger and manager state immediately before mutation, preserves the removed rows and any phase-20 marker under `~/.local/state/j3w1zsh/packages/repairs/`, removes only the named false claims, and invalidates phase `20-packages`. It refuses installed packages, non-ownership rows, missing or duplicate targets, malformed state, changed projections, and platform/manager mismatches. It never installs, removes, or modifies a package.
 
-Arch initial installation may offer a confirmed full `pacman -Syu`. Routine update never performs a full upgrade and never runs `pacman -Sy`.
+`j3w1zsh update` may install newly required missing packages using the existing synchronized manager state, but it never invokes this rolling full refresh, never performs a full upgrade, and never runs `pacman -Sy`. Package upgrades do not rewrite provenance ownership history: `pre_existing`, `installed_by_j3w1zsh`, and `first_seen_product_version` remain stable, and versions are not part of package identity.

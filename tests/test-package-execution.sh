@@ -14,6 +14,7 @@ mkdir -p "$fake_bin" "$system_root/usr/bin" "$system_root/usr/lib/node_modules/c
 
 cat >"$fake_bin/sudo" <<'EOF'
 #!/usr/bin/env bash
+printf 'sudo %s\n' "$*" >>"$TEST_PACKAGE_LOG"
 exec "$@"
 EOF
 
@@ -29,6 +30,10 @@ case "${1:-}" in
 -Qqo)
   path="${*: -1}"
   case "$path" in
+  "$TEST_SYSTEM_ROOT/usr/bin/pnpm" | "$TEST_SYSTEM_ROOT/usr/bin/pnpx")
+    grep -Fxq 'pacman:pnpm' "$TEST_PACKAGE_DB" || exit 1
+    printf 'pnpm\n'
+    ;;
   "$TEST_SYSTEM_ROOT/usr/lib/node_modules/corepack/dist/pnpm.js" | "$TEST_SYSTEM_ROOT/usr/lib/node_modules/corepack/dist/pnpx.js")
     grep -Fxq 'pacman:corepack' "$TEST_PACKAGE_DB" || exit 1
     printf 'corepack\n'
@@ -112,7 +117,7 @@ install)
   [[ ${TEST_FAIL_MANAGER:-} != pip_user ]] || exit 42
   if [[ ${TEST_NO_INSTALL_MANAGER:-} != pip_user ]]; then
     for package in "$@"; do
-      case "$package" in -m | pip | install | --user | --) continue ;; esac
+      case "$package" in -m | pip | install | --user | --upgrade | --) continue ;; esac
       grep -Fxq "pip_user:$package" "$TEST_PACKAGE_DB" || printf 'pip_user:%s\n' "$package" >>"$TEST_PACKAGE_DB"
     done
   fi
@@ -146,6 +151,8 @@ jq '
 
 packages_help="$("$repo_root/bin/j3w1zsh" help packages)"
 grep -q 'repair-provenance --manager MANAGER' <<<"$packages_help"
+install_help="$("$repo_root/bin/j3w1zsh" help install)"
+grep -q 'refreshes selected rolling software' <<<"$install_help"
 
 fixture_home="$test_root/home"
 reset_fixture() {
@@ -250,10 +257,31 @@ jq -e '
   (.packages[] | select(.manager=="pacman" and .package=="bash") | .pre_existing==true and .installed_by_j3w1zsh==false)
 ' "$ledger" >/dev/null
 ledger_before="$(sha256sum "$ledger")"
-log_before="$(sha256sum "$package_log")"
+: >"$package_log"
 rerun_output="$(run_fixture wsl install --preset "$preset" --packages-only --yes --plain)"
-grep -q 'Skipping completed phase: 20-packages' <<<"$rerun_output"
-[[ $(sha256sum "$ledger") == "$ledger_before" && $(sha256sum "$package_log") == "$log_before" ]]
+[[ $(grep -c '^\[+\] Phase 20-packages$' <<<"$rerun_output") == 1 ]]
+if grep -q 'Skipping completed phase: 20-packages' <<<"$rerun_output"; then
+  printf 'Explicit package refresh skipped a completed phase marker.\n' >&2
+  exit 1
+fi
+grep -Fq 'pacman -Syu --needed bash coreutils git jq pacman-target' "$package_log"
+grep -Fq 'npm install --global npm-target' "$package_log"
+grep -Fq 'python -m pip install --user --upgrade pip-target' "$package_log"
+[[ $(sha256sum "$ledger") == "$ledger_before" ]]
+
+# A repeat explicit install with one selected package missing still uses the
+# same coherent full transaction and preserves the original ownership record.
+grep -Fxv 'pacman:pacman-target' "$package_db" >"$package_db.next"
+mv -- "$package_db.next" "$package_db"
+: >"$package_log"
+run_fixture wsl install --preset "$preset" --packages-only --yes --plain >/dev/null
+grep -Fq 'pacman -Syu --needed bash coreutils git jq pacman-target' "$package_log"
+grep -Fxq 'pacman:pacman-target' "$package_db"
+if grep -Eq '^pacman -Sy( |$)' "$package_log"; then
+  printf 'Explicit Arch install performed a sync-only partial upgrade.\n' >&2
+  exit 1
+fi
+[[ $(sha256sum "$ledger") == "$ledger_before" ]]
 
 # Package-free and package-only selection retain their exact boundaries.
 reset_fixture wsl
@@ -317,6 +345,57 @@ grep -Fxq 'pkg:pkg-target' "$package_db"
 grep -Fxq 'npm_global:npm-target' "$package_db"
 grep -Fxq 'pip_user:pip-target' "$package_db"
 jq -e '.packages[] | select(.manager=="pkg" and .package=="pkg-target" and .installed_by_j3w1zsh==true)' "$ledger" >/dev/null
+grep -Fq 'pkg upgrade -y' "$package_log"
+grep -Fq 'pkg install -y bash coreutils git jq pkg-target' "$package_log"
+: >"$package_log"
+run_fixture termux install --preset "$preset" --packages-only --yes --plain >/dev/null
+grep -Fq 'pkg upgrade -y' "$package_log"
+grep -Fq 'pkg install -y bash coreutils git jq pkg-target' "$package_log"
+grep -Fq 'npm install --global npm-target' "$package_log"
+grep -Fq 'python -m pip install --user --upgrade pip-target' "$package_log"
+if grep -Eq '^sudo |systemctl|systemd' "$package_log"; then
+  printf 'Termux package refresh invoked a privileged or systemd operation.\n' >&2
+  exit 1
+fi
+
+# Product update reconciliation installs newly required packages without
+# turning a source update into a full Arch or Termux upgrade.
+reset_fixture wsl
+env \
+  HOME="$fixture_home" \
+  XDG_STATE_HOME="$fixture_home/.local/state" \
+  XDG_CONFIG_HOME="$fixture_home/.config" \
+  XDG_CACHE_HOME="$fixture_home/.cache" \
+  PATH="$fake_bin:$PATH" \
+  J3W1ZSH_REPO_ROOT="$repo_root" \
+  J3W1ZSH_TEST_MODE=1 \
+  J3W1ZSH_TEST_EFFECTIVE_UID=1000 \
+  J3W1ZSH_TEST_PLATFORM=wsl \
+  J3W1ZSH_TEST_SYSTEM_ROOT="$system_root" \
+  TEST_SYSTEM_ROOT="$system_root" \
+  TEST_PACKAGE_DB="$package_db" \
+  TEST_PACKAGE_LOG="$package_log" \
+  TEST_PRESET="$preset" \
+  bash -c '
+    set -Eeuo pipefail
+    source "$J3W1ZSH_REPO_ROOT/scripts/lib/core/init.sh"
+    source "$J3W1ZSH_REPO_ROOT/scripts/lib/presets.sh"
+    source "$J3W1ZSH_REPO_ROOT/scripts/lib/packages.sh"
+    source "$J3W1ZSH_REPO_ROOT/scripts/lib/core/plan.sh"
+    j3w1zsh_resolve_preset "$TEST_PRESET"
+    J3W1ZSH_PACKAGE_REFRESH=0
+    J3W1ZSH_PACKAGE_PLAN_DIGEST="$(printf "9%.0s" {1..64})"
+    export J3W1ZSH_PACKAGE_REFRESH J3W1ZSH_PACKAGE_PLAN_DIGEST
+    j3w1zsh_install_package_set pacman "$(j3w1zsh_packages_for_manager_json pacman)"
+    j3w1zsh_install_package_set npm_global "$(j3w1zsh_packages_for_manager_json npm_global)"
+    j3w1zsh_install_package_set pip_user "$(j3w1zsh_packages_for_manager_json pip_user)"
+  '
+grep -Fq 'pacman -S --needed pacman-target' "$package_log"
+if grep -Eq '^pacman -Syu |^pkg upgrade ' "$package_log"; then
+  printf 'Product update reconciliation performed a rolling full refresh.\n' >&2
+  exit 1
+fi
+grep -Fq 'j3w1zsh_install_command_mode update' "$repo_root/scripts/commands/update.sh"
 
 # The exact Corepack/Pacman collision pauses before package mutation. Unknown
 # path content is protected, and j3w1zsh never invokes Corepack automatically.
@@ -362,6 +441,14 @@ if grep -q '^corepack ' "$package_log"; then
   printf 'Resolved collision invoked Corepack automatically.\n' >&2
   exit 1
 fi
+
+# A later full refresh recognizes the healthy Pacman-owned pnpm paths and does
+# not mistake them for the former unowned Corepack shims.
+printf 'pacman pnpm executable\n' >"$system_root/usr/bin/pnpm"
+printf 'pacman pnpx executable\n' >"$system_root/usr/bin/pnpx"
+healthy_refresh="$(run_fixture wsl install --preset "$collision_preset" --packages-only --yes --plain)"
+[[ $(grep -c '^\[+\] Phase 20-packages$' <<<"$healthy_refresh") == 1 ]]
+grep -Fq 'pacman -Syu --needed bash coreutils git jq pnpm' "$package_log"
 
 # Repair is explicit, dry-runnable, exact-targeted, manager-verified, evidence
 # preserving, and leaves every unrelated ledger record unchanged.

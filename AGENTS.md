@@ -65,7 +65,12 @@ tests, and the appropriate contract as part of the same change.
   `--dry-run` must not write state, trust, cache, project files, Git refs, Wiki checkouts, or
   package-manager state.
 - `update` remains fast-forward-only, protects authored/staged/divergent work, preserves known
-  repair bytes, respects fork ownership, and relaunches the newly checked-out executable.
+  repair bytes, respects fork ownership, and relaunches the newly checked-out executable. It may
+  install newly required packages but never performs an unconditional full platform upgrade.
+- A package-enabled explicit `install` refreshes selected rolling software through the supported
+  platform, npm, Python-user, and official Codex sources. It never downgrades a newer valid local
+  version merely to match an older repository reference. `status`, `doctor`, and phase 90 remain
+  network-independent installed/usable checks rather than upstream-latest checks.
 
 ## Configuration and compatibility
 
@@ -74,7 +79,9 @@ tests, and the appropriate contract as part of the same change.
   execute code.
 - Keep reviewed Neovim commits in tracked `lazy-lock.json`; runtime state is device-local. Use
   `scripts/update-neovim-lock.sh` for deliberate lock updates.
-- Keep Oh My Zsh, Codex, and Nerd Font pins in `versions.env`.
+- Keep intentional implementation artifact pins in `versions.env`: Oh My Zsh revision, the
+  checksum-pinned official Codex installer artifact, and Nerd Font bytes. The desired Codex CLI
+  follows OpenAI's current stable channel and is not frozen to the installer artifact version.
 - Protect `Space ?`, responsive cheat-sheet behavior, platform clipboard mappings, `Ctrl-q`
   Visual Block, tmux `Ctrl-a`, exact-session targeting, and `tma` multi-client/confirmed-kill.
 - Do not claim native Android Codex support; Termux reaches the official CLI on a private remote
