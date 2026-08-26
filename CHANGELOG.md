@@ -28,9 +28,11 @@ All notable changes to `j3w1zsh` are documented here.
 
 ### Changed
 
-- Explicit package-enabled installs now refresh the complete selected rolling software set: one
-  coherent Arch full-upgrade transaction, supported Termux upgrade/install, current npm globals,
-  upgraded Python user packages, and current stable official Codex on WSL. Completed package,
+- Explicit package-enabled installs now refresh the complete selected rolling software set. Arch
+  and WSL use the supported keyring-first sequence: synchronize databases and reconcile
+  `archlinux-keyring`, then immediately run the full upgrade with every selected Pacman target as
+  one fail-closed package phase. Termux retains its supported upgrade/install flow; npm globals,
+  Python user packages, and the stable official Codex CLI on WSL are refreshed. Completed package,
   Codex, and final-verification markers no longer suppress that explicit refresh; unrelated
   configuration phases remain cached.
 - Codex now separates the checksum-pinned official installer artifact from the desired CLI

@@ -407,8 +407,13 @@ j3w1zsh_install_package_set() {
     case "$manager" in
     pacman)
       if [[ $refresh == 1 ]]; then
-        j3w1zsh_confirm "Allow pacman to perform a coherent full Arch upgrade and refresh ${#packages[@]} selected packages?" || return 1
-        j3w1zsh_run sudo pacman -Syu --needed "${packages[@]}" || return $?
+        j3w1zsh_confirm "Allow pacman to refresh the Arch keyring, perform a coherent full upgrade, and refresh ${#packages[@]} selected packages?" || return 1
+        # Arch's supported stale-keyring recovery is one fail-closed sequence:
+        # synchronize and reconcile the keyring first, then immediately perform
+        # the full upgrade with every selected target. A failure in either
+        # transaction returns before verification, provenance, or phase marking.
+        j3w1zsh_run sudo pacman -Sy --needed archlinux-keyring || return $?
+        j3w1zsh_run sudo pacman -Su --needed "${packages[@]}" || return $?
       else
         j3w1zsh_run sudo pacman -S --needed "${missing[@]}" || return $?
       fi
