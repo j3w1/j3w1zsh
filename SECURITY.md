@@ -36,6 +36,9 @@ before installation on a sensitive machine. Begin with `./install.sh --dry-run`.
 - Automatic recursive cleanup is limited to exact script-created ephemeral directories that are
   registered by the current process, parent- and prefix-validated, non-symlinked, and protected
   by a regular ownership marker. Recovery generations and user-owned paths are never eligible.
+- Windows current-user fonts are checksum-verified, reject non-regular/reparse destinations, and
+  use content-addressed side-by-side files for changed pins; an exact installed pin is reused and
+  older or ambiguous files are never blindly overwritten or automatically removed.
 - `plan` and `--dry-run` may inspect selected state and remote refs but create no durable state,
   trust, cache, host configuration, package operation, or Git ref.
 

@@ -38,7 +38,7 @@ j3w1zsh_platform_configure_wsl() {
 }
 
 j3w1zsh_host_theme_wsl() {
-  [[ $J3W1ZSH_TEST_MODE == 1 ]] && return 0
+  [[ $J3W1ZSH_TEST_MODE != 1 || ${J3W1ZSH_TEST_HOST_ADAPTERS:-0} == 1 ]] || return 0
   local checkpoint=windows-terminal-restart
   if j3w1zsh_manual_pending "$checkpoint"; then
     if j3w1zsh_confirm_manual "Have you closed every Windows Terminal window and reopened j3w1zsh?"; then

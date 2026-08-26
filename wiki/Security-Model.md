@@ -16,6 +16,8 @@ Managed destinations remain under the intended home or one exact platform adapte
 
 Recursive forced cleanup is confined to the normal-runtime and standalone-migration guarded ephemeral helpers. Both require exact registration, a resolved allowed parent, an exact basename prefix shape, a non-symlink directory, and a regular ownership marker before removal. The runtime marker is process-owned. Persistent recovery generations, generated product paths, user destinations, workspaces, config/state/cache roots, and repository checkouts cannot be registered through this interface.
 
+The Windows current-user font adapter hashes installed bytes before deciding to write. It rejects reparse-point or non-regular installed destinations, accepts an exact pinned legacy file without replacement, and installs a changed verified pin under its full SHA-256 filename rather than overwriting an in-use fixed path. A mismatched file at the expected content-addressed destination is preserved and stops the adapter. Older font files are not automatically removed. Downloads use a unique process path and checksum verification; recursive cleanup requires the exact in-memory parent, basename, directory type, and ownership-marker token.
+
 Package reconciliation fails closed: each aggregate phase runs once, a child failure stops all later phases, and provenance requires positive exact-manager verification. Known Corepack/Pacman `pnpm` shims become a manual checkpoint; ambiguous path ownership is protected. The bounded provenance repair revalidates exact named records and manager state, preserves evidence, and cannot install, remove, or alter packages.
 
 ## Workspace execution

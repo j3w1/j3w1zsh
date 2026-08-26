@@ -60,6 +60,10 @@ All notable changes to `j3w1zsh` are documented here.
   updater classification returns the stable protected-state error for a missing upstream.
 - Wiki publication now validates existing pages against their exact lock-derived filenames, so
   rerunning publication remains idempotent for required names that contain meaningful hyphens.
+- The Windows current-user Nerd Font adapter now treats an exact pinned legacy file as already
+  satisfied, installs changed pins beside older files under a SHA-256-addressed filename, and
+  uses unique marker-owned download staging. It never overwrites an in-use or mismatched font,
+  while the owned HKCU registration and single Windows Terminal fragment remain reconcilable.
 
 ### Removed
 
