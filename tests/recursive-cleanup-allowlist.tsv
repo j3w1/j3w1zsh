@@ -17,5 +17,6 @@ tests/test-tma.sh	1	test-fixture	EXIT trap removes only this test process's mkte
 tests/test-update-v1.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root, including deliberately non-writable Git objects.
 tests/test-wiki.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
 tests/test-workspace-v2.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
+tests/test-wsl-host-theme.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
 tests/test-zsh-prompt.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
 tests/validate-wiki-lock.sh	1	test-fixture	EXIT trap removes only the exact Wiki validation mktemp root.

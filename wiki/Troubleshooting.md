@@ -26,6 +26,12 @@ Run `j3w1zsh platform --json`. WSL must be version 2 and official Arch. Native L
 
 The flag intentionally acquires nothing. Install the reported prerequisite through the platform owner or rerun without the flag after reviewing the plan.
 
+## Windows font or phase 50
+
+An exact pinned current-user font is idempotent even while Windows Terminal is using it; j3w1zsh hashes and reuses the regular non-reparse file without replacement. A future changed pin installs beside the old file under a SHA-256-addressed filename and updates only the owned HKCU font registration. Do not delete the old file merely to continue.
+
+If phase `50-theme` reports a mismatched content-addressed font or an unsafe/reparse-point destination, leave the file in place and inspect its type, digest, path ownership, and registry reference. The adapter fails before its phase marker and before phases 60-90. The `windows-terminal-restart` checkpoint appears only after verified font and fragment reconciliation succeeds.
+
 ## Candidate workspace cannot apply
 
 Review all fields, ensure the current platform has an explicit target, set `review_state` to `approved`, commit the profile and referenced sources cleanly, then apply and confirm the displayed SHA-256.
