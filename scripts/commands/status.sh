@@ -93,6 +93,12 @@ j3w1zsh_doctor_command() {
     [[ $ok == true ]] || overall=error
     checks="$(jq -cn --argjson checks "$checks" --arg name "$command_name" --argjson ok "$ok" '$checks + [{name:$name,ok:$ok}]')"
   done
+  if [[ $J3W1ZSH_PLATFORM == wsl ]]; then
+    ok=false
+    j3w1zsh_wsl_interop_healthy && ok=true
+    [[ $ok == true ]] || overall=error
+    checks="$(jq -cn --argjson checks "$checks" --argjson ok "$ok" '$checks + [{name:"wsl-interop",ok:$ok}]')"
+  fi
   ok=false
   if git -C "$J3W1ZSH_REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 &&
     git -C "$J3W1ZSH_REPO_ROOT" rev-parse --verify '@{upstream}^{commit}' >/dev/null 2>&1; then

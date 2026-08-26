@@ -76,6 +76,12 @@ All notable changes to `j3w1zsh` are documented here.
   satisfied, installs changed pins beside older files under a SHA-256-addressed filename, and
   uses unique marker-owned download staging. It never overwrites an in-use or mismatched font,
   while the owned HKCU registration and single Windows Terminal fragment remain reconcilable.
+- WSL doctor and final verification now prove harmless Windows PE execution instead of trusting
+  executable paths alone. Broken post-upgrade interop creates a bounded full-VM-restart
+  checkpoint that never changes clipboard contents or invokes `wsl --shutdown`, and phase 90 can
+  resume without repeating the Pacman phase.
+- `tma` now gives tmux real tab bytes in its session-row format, keeping interactive picker,
+  multi-client attach, and confirmed kill operations bound to the exact selected session name.
 
 ### Removed
 

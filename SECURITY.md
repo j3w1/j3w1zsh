@@ -39,6 +39,9 @@ before installation on a sensitive machine. Begin with `./install.sh --dry-run`.
 - Windows current-user fonts are checksum-verified, reject non-regular/reparse destinations, and
   use content-addressed side-by-side files for changed pins; an exact installed pin is reused and
   older or ambiguous files are never blindly overwritten or automatically removed.
+- WSL health checks execute a harmless non-interactive Windows PowerShell exit probe without
+  reading or writing the clipboard. A failed probe records manual recovery instructions but
+  never invokes the host-wide `wsl --shutdown` operation.
 - `plan` and `--dry-run` may inspect selected state and remote refs but create no durable state,
   trust, cache, host configuration, package operation, or Git ref.
 

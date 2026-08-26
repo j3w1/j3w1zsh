@@ -9,7 +9,7 @@ fixture_bin="$test_root/bin"
 mkdir -p "$fixture_bin"
 [[ $(grep -Ec "^[[:space:]]*rm -rf -- \"\\\$path\"$" "$migration") == 1 ]]
 [[ $(grep -Ec '^[[:space:]]*rm -r[[:space:]]' "$migration") == 0 ]]
-for fixture_command in gh nvim tmux; do
+for fixture_command in gh nvim tmux powershell.exe; do
   cat >"$fixture_bin/$fixture_command" <<'EOF'
 #!/usr/bin/env bash
 exit 0

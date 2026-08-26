@@ -4,6 +4,8 @@
 
 A user-owned external action is pending—commonly WSL restart, Windows Terminal reload, Android permission, companion app, authentication, or reviewed settings. Follow the exact message and rerun the same command. `--yes` never bypasses a manual host checkpoint.
 
+If phase `90-verify` creates `wsl-interop-restart`, Windows PE execution failed even if `powershell.exe` and `clip.exe` paths exist. From Windows PowerShell run `wsl --shutdown`; warning: this stops every running WSL distribution. Reopen `j3w1zsh - arch wsl`, then run `j3w1zsh install --only 90-verify`. j3w1zsh never performs the shutdown itself, the continuation does not repeat phase 20 or a Pacman refresh, and the checkpoint clears only after a harmless PowerShell execution probe succeeds.
+
 For the exact Corepack/Pacman `pnpm` collision, confirm the reported resolved targets are owned by Pacman package `corepack`. j3w1zsh preserves both shim paths. Only after that ownership review should the owner run the displayed `sudo corepack disable pnpm --install-directory /usr/bin`, verify `/usr/bin/pnpm` and `/usr/bin/pnpx` are absent, and rerun phase 20.
 
 ## Exit 21
@@ -17,6 +19,10 @@ If `git -C ~/j3w1zsh status --short --branch` reports `[gone]`, do not reset, re
 ## Doctor reports `git-upstream`
 
 `j3w1zsh doctor` resolves the configured upstream from local Git data only; it does not contact the network. A failed `git-upstream` check means the upstream is absent or its local tracking ref cannot resolve. Inspect `git status --short --branch`, branch configuration, and local refs before using update.
+
+## Doctor reports `wsl-interop`
+
+The WSL runtime could not execute a harmless non-interactive Windows PowerShell command. File existence is not sufficient health evidence. Do not alter the Neovim clipboard mappings or mutate the clipboard as a diagnostic; follow the bounded full-WSL restart checkpoint above.
 
 ## Unsupported platform
 

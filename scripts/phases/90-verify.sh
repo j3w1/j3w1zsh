@@ -40,4 +40,7 @@ phase_90_verify() {
   if j3w1zsh_preset_has_feature tmux || j3w1zsh_preset_has_feature neovim; then
     [[ -x $HOME/.local/bin/j3w1zsh-clipboard-copy ]] || j3w1zsh_die "The clipboard adapter is missing."
   fi
+  if [[ $J3W1ZSH_PLATFORM == wsl ]]; then
+    j3w1zsh_require_wsl_interop
+  fi
 }

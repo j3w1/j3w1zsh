@@ -19,6 +19,8 @@ Each completed phase is atomic JSON containing state schema, product version, pl
 
 An explicit package-enabled install deliberately refreshes phases `20-packages`, selected WSL `70-codex`, and `90-verify` even when their fingerprints are current. This is bounded rolling-software policy, not a global `--force`: unrelated configuration phases keep their cached markers. Product `update` uses the separate missing-requirement reconciliation mode and never turns a source fast-forward into an unconditional platform upgrade.
 
+On WSL, phase 90 proves actual Windows PE execution. A failed probe records the manual `wsl-interop-restart` checkpoint before phase completion; `j3w1zsh install --only 90-verify` retries only the bounded final phase and clears the checkpoint only after the runtime proof succeeds.
+
 Workspace generations add workspace ID, full manifest SHA-256, and platform. Trust and phase completion are separate records. A failed action is never marked complete.
 
 Filesystem reconciliation validates the intended home boundary, backs up conflicts, and uses atomic replace for state/config output. Script-created staging and comparison directories use one registered, parent-scoped, prefix-validated, process-marker-owned cleanup primitive; promotion to an approved persistent destination removes ephemeral ownership. Manual checkpoints persist exact instructions and exit 20.

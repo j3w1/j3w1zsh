@@ -10,6 +10,8 @@ Private keys, tokens, passwords, OAuth/Codex sessions, GitHub CLI hosts data, hi
 
 Detection occurs before mutation. Production has no platform-forcing escape hatch. Test overrides work only in test mode. Termux rejects root, privilege wrappers, system services, absolute managed destinations, shell evaluation, and host-level adapters.
 
+WSL interop health executes only a harmless non-interactive Windows PowerShell exit command. Doctor does not read or mutate the clipboard. Broken interop can create a phase-90 manual checkpoint, but j3w1zsh never invokes the host-wide `wsl --shutdown` recovery operation.
+
 ## Files and Git
 
 Managed destinations remain under the intended home or one exact platform adapter. Conflicts are preserved. Updates stop on authored/staged/untracked/deleted/renamed/ahead/divergent state and fast-forward only. Migration captures protected bytes and unique refs before stopping.

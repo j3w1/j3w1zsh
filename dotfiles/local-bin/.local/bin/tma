@@ -41,9 +41,9 @@ need_tmux() {
 }
 
 list_sessions() {
-  tmux list-sessions \
-    -F '#{session_name}\t#{session_windows} window(s)\t#{?session_attached,attached,detached}\tcreated #{t:session_created}' \
-    2>/dev/null || true
+  local format
+  format=$'#{session_name}\t#{session_windows} window(s)\t#{?session_attached,attached,detached}\tcreated #{t:session_created}'
+  tmux list-sessions -F "$format" 2>/dev/null || true
 }
 
 session_exists() {

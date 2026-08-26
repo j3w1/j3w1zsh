@@ -78,6 +78,11 @@ Mutating families share one typed planner. `j3w1zsh plan` and every `--dry-run` 
 the selected machine and repository but do not create state, trust, cache, Git refs, package
 operations, or managed files.
 
+On WSL, `doctor` and phase 90 prove actual harmless Windows PE execution without changing the
+clipboard. If a package upgrade leaves interop unusable, phase 90 pauses with the manual
+`wsl --shutdown` recovery and a bounded final-verification continuation; j3w1zsh never shuts
+down WSL itself.
+
 Global `--json`, `--plain`, and `--color=auto|always|never` options may appear before or after
 the command until `--`. Machine output is one stable JSON envelope with no banner or ANSI.
 
