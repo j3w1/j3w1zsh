@@ -351,7 +351,8 @@ migration_classify_installation() {
 migration_source_origin_allowed() {
   local origin="$1"
   case "$origin" in
-  git@github.com:j3w1/bloody-writer.git | https://github.com/j3w1/bloody-writer | https://github.com/j3w1/bloody-writer.git | \
+  git@github.com:1w3j/bloody-writer.git | https://github.com/1w3j/bloody-writer | https://github.com/1w3j/bloody-writer.git | \
+    git@github.com:j3w1/bloody-writer.git | https://github.com/j3w1/bloody-writer | https://github.com/j3w1/bloody-writer.git | \
     git@github.com:j3w1/j3w1zsh.git | https://github.com/j3w1/j3w1zsh | https://github.com/j3w1/j3w1zsh.git)
     return 0
     ;;
