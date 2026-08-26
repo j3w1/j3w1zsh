@@ -12,6 +12,7 @@ interop_log="$test_root/interop.log"
 clipboard_log="$test_root/clipboard.log"
 package_log="$test_root/package.log"
 preset="$test_root/interop-preset.json"
+real_git="$(command -v git)"
 mkdir -p "$fixture_home/.local/bin" "$fixture_home/.local/state/j3w1zsh/phases" \
   "$termux_home/.local/bin" "$termux_home/.local/state/j3w1zsh/phases" "$fixture_bin"
 
@@ -41,12 +42,23 @@ cat >"$fixture_bin/pacman" <<'EOF'
 printf '%s\n' "$*" >>"$TEST_PACKAGE_LOG"
 exit 99
 EOF
+cat >"$fixture_bin/git" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+if [[ ${1:-} == -C && ${3:-} == rev-parse && ${4:-} == --is-inside-work-tree ]]; then
+  exit 0
+fi
+if [[ ${1:-} == -C && ${3:-} == rev-parse && ${4:-} == --verify && ${5:-} == '@{upstream}^{commit}' ]]; then
+  exit 0
+fi
+exec "$TEST_REAL_GIT" "$@"
+EOF
 cat >"$fixture_home/.local/bin/j3w1zsh" <<'EOF'
 #!/usr/bin/env bash
 exit 0
 EOF
 cp "$fixture_home/.local/bin/j3w1zsh" "$termux_home/.local/bin/j3w1zsh"
-chmod +x "$fixture_bin/powershell.exe" "$fixture_bin/clip.exe" "$fixture_bin/pacman" \
+chmod +x "$fixture_bin/powershell.exe" "$fixture_bin/clip.exe" "$fixture_bin/pacman" "$fixture_bin/git" \
   "$fixture_home/.local/bin/j3w1zsh" "$termux_home/.local/bin/j3w1zsh"
 
 for home in "$fixture_home" "$termux_home"; do
@@ -73,6 +85,7 @@ run_cli() {
     TEST_CLIPBOARD_LOG="$clipboard_log" \
     TEST_PACKAGE_LOG="$package_log" \
     TEST_POWERSHELL_EXIT="$powershell_exit" \
+    TEST_REAL_GIT="$real_git" \
     "$repo_root/bin/j3w1zsh" "$@"
 }
 
