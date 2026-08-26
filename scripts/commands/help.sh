@@ -61,7 +61,9 @@ Usage: j3w1zsh install [OPTIONS]
 
 --no-packages reconciles configuration using available tools and reports missing
 prerequisites without installing them. It is incompatible with --packages-only
-and --workspace. --packages-only never runs file or lifecycle phases.
+and --workspace. A package-enabled install refreshes selected rolling software
+through its approved package manager; --packages-only never runs file or
+lifecycle phases. Use --dry-run to review the complete transaction first.
 EOF
 }
 

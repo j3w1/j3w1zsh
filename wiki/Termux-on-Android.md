@@ -12,3 +12,5 @@ j3w1zsh remote attach
 ```
 
 Keep Termux and Termux:API from the same signing source. Android storage, clipboard, font, and color behavior must be verified on a real device before a release is accepted.
+
+A package-enabled explicit install runs the supported `pkg upgrade` flow and then ensures the complete selected `pkg` set before refreshing selected npm globals and user-level Python packages. It never invokes root or a privilege wrapper. Product `update` does not imply a full Termux upgrade.

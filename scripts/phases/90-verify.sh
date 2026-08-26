@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 phase_90_verify() {
-  [[ $J3W1ZSH_TEST_MODE == 1 ]] && return 0
+  [[ $J3W1ZSH_TEST_MODE != 1 || ${J3W1ZSH_TEST_VERIFY_ADAPTERS:-0} == 1 ]] || return 0
   local required=(bash git jq)
   j3w1zsh_preset_has_feature shell && required+=(zsh)
   j3w1zsh_preset_has_feature tmux && required+=(tmux)

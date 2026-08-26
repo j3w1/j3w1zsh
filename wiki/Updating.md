@@ -18,6 +18,8 @@ Fork `origin` is never changed. A canonical `upstream` is recognized or added on
 
 After a successful fast-forward, update relaunches the freshly checked-out executable before framework/state reconciliation. Active workspace status is reported without running project lifecycle.
 
+Post-pull reconciliation may install a newly required missing package, but it does not refresh already installed Pacman, `pkg`, npm, pip, or Codex software and never performs an unconditional full platform upgrade. Run an explicit package-enabled `j3w1zsh install` when the owner intends to refresh the selected rolling workstation software definition.
+
 The Git fast-forward and post-pull reconciliation are deliberately separate boundaries. If a package manager or later phase fails after the fast-forward, the checkout may already be at the new verified commit, but the failed phase is not marked complete and no later phase runs. Correct the reported condition and rerun the normal installer from the pending phase; update never runs workspace lifecycle while doing so.
 
 An installation affected by the pre-release false package-provenance defect must first fast-forward to the corrected executable under the normal protected update rules. Then use the exact-target, manager-verified `packages repair-provenance` procedure in [Package Layers and Presets](Package-Layers-and-Presets), resolve any displayed Corepack/Pacman checkpoint without automatic deletion, and rerun from `20-packages`. Do not edit the ledger manually or infer package ownership from an executable on `PATH`.

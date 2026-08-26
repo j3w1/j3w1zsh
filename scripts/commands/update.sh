@@ -65,14 +65,12 @@ j3w1zsh_update_command() {
   export J3W1ZSH_DRY_RUN J3W1ZSH_ASSUME_YES
   if [[ ${J3W1ZSH_UPDATE_AFTER_PULL:-0} == 1 ]]; then
     [[ -z $(j3w1zsh_git_checkout_status) ]] || j3w1zsh_git_protected_stop "$(j3w1zsh_git_checkout_status)"
-    J3W1ZSH_UPDATE_MODE=1
-    export J3W1ZSH_UPDATE_MODE
     local preset theme
     preset="$(j3w1zsh_update_selected_preset)"
     theme="$(j3w1zsh_update_selected_theme)"
     local install_arguments=(--preset "$preset" --theme "$theme" --force --from 20-packages)
     [[ $J3W1ZSH_ASSUME_YES != 1 ]] || install_arguments+=(--yes)
-    j3w1zsh_install_command "${install_arguments[@]}"
+    j3w1zsh_install_command_mode update "${install_arguments[@]}"
     if [[ -f $J3W1ZSH_STATE_DIR/workspaces/active.json ]]; then
       j3w1zsh_note "Active workspace state (lifecycle was not run):"
       j3w1zsh_workspace_status_command

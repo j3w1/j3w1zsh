@@ -31,3 +31,5 @@ j3w1zsh plan
 - `minimal` keeps Zsh, tmux, Neovim, SSH, planning prerequisites, and the built-in theme while omitting broad tooling and automation.
 
 Use `--no-packages` when packages must remain entirely owner-managed. Missing tools are reported rather than installed.
+
+Package-enabled `install` is an explicit rolling-software refresh, not a restore to historical version references. Review its dry-run: Arch/WSL uses one coherent full-upgrade transaction for the complete selected Pacman set; Termux performs its supported upgrade plus complete selected `pkg` reconciliation; selected npm and user-level Python packages are refreshed; and WSL refreshes Codex from OpenAI's current stable channel. A newer valid local version remains healthy and is not downgraded.

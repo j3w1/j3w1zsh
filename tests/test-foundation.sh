@@ -97,7 +97,13 @@ fi
 [[ -z $(find "$state/j3w1zsh/backups" -maxdepth 1 -type d -name '.restore.*' -print -quit) ]]
 
 no_op="$(run_install install --preset minimal --yes --plain)"
-grep -q 'Skipping completed phase: 90-verify' <<<"$no_op"
+grep -q '^\[+\] Phase 20-packages$' <<<"$no_op"
+grep -q '^\[+\] Phase 90-verify$' <<<"$no_op"
+grep -q 'Skipping completed phase: 40-config' <<<"$no_op"
+if grep -q 'Skipping completed phase: 20-packages' <<<"$no_op"; then
+  printf 'Explicit install skipped rolling package reconciliation.\n' >&2
+  exit 1
+fi
 
 cat >"$config/j3w1zsh/packages.json" <<'JSON'
 {"schema_version":1,"additions":{"pkg":["termux-api"]},"exclusions":{}}
@@ -129,6 +135,7 @@ done
 packages_only="$(run_install install --preset minimal --packages-only --dry-run --json)"
 jq -e '
   ([.data.actions[] | select(.phase=="20-packages")] | length)>0 and
+  ([.data.actions[] | select(.phase=="20-packages" and .package_manager=="pkg" and (.reason | contains("upgrade Termux")))] | length)==1 and
   ([.data.actions[] | select(.phase=="10-platform" and .kind=="verification" and .mutation==false)] | length)==1 and
   ([.data.actions[] | select(.phase=="30-shell" or .phase=="40-config" or .phase=="50-theme" or .phase=="60-neovim" or .phase=="90-verify")] | length)==0
 ' <<<"$packages_only" >/dev/null

@@ -51,6 +51,13 @@ j3w1zsh install --preset minimal
 Use `--no-packages`, `--do-not-install-anything`, or `-dnia` to reconcile configuration with
 tools already present. Missing prerequisites are reported and never acquired in that mode.
 
+A package-enabled `install` refreshes the complete selected software set from its approved
+rolling sources: a coherent `pacman -Syu --needed` transaction on Arch/WSL, supported `pkg`
+upgrade/install semantics on Termux, current selected npm and user-level Python packages, and the
+current stable official Codex CLI on WSL. Newer valid manually installed versions are not
+downgraded. `update` remains a protected j3w1zsh source fast-forward and never performs an
+unconditional full platform upgrade. Run the dry-run first to review the transaction.
+
 Do not pipe mutable `main` into a shell. Versioned and migration bootstraps must be downloaded
 from an immutable commit or tag, verified against the checksum tracked at that same revision,
 inspected, and dry-run first. See [Installation Methods](https://github.com/j3w1/j3w1zsh/wiki/Installation-Methods).

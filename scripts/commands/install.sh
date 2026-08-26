@@ -101,13 +101,21 @@ j3w1zsh_plan_selects_phase() {
   return 1
 }
 
+j3w1zsh_phase_requires_rolling_refresh() {
+  [[ ${J3W1ZSH_PACKAGE_REFRESH:-0} == 1 ]] || return 1
+  case "$1" in
+  20-packages | 70-codex | 90-verify) return 0 ;;
+  *) return 1 ;;
+  esac
+}
+
 j3w1zsh_execute_phase() {
   local phase="$1"
   local from_phase="$2"
   local only_phase="$3"
   local function
   j3w1zsh_action_selected "$phase" "$from_phase" "$only_phase" || return 0
-  if [[ $J3W1ZSH_FORCE != 1 ]] && j3w1zsh_phase_done "$phase"; then
+  if [[ $J3W1ZSH_FORCE != 1 ]] && ! j3w1zsh_phase_requires_rolling_refresh "$phase" && j3w1zsh_phase_done "$phase"; then
     j3w1zsh_note "Skipping completed phase: $phase"
     return 0
   fi
@@ -123,6 +131,13 @@ j3w1zsh_execute_phase() {
 }
 
 j3w1zsh_install_command() {
+  j3w1zsh_install_command_mode explicit "$@"
+}
+
+j3w1zsh_install_command_mode() {
+  local install_mode="$1"
+  shift
+  [[ $install_mode == explicit || $install_mode == update ]] || j3w1zsh_die "Invalid internal install mode."
   local from_phase="" only_phase=""
   J3W1ZSH_PRESET=j3w1
   J3W1ZSH_THEME_OVERRIDE=""
@@ -157,6 +172,11 @@ j3w1zsh_install_command() {
   if [[ $J3W1ZSH_NO_PACKAGES == 1 && -n $J3W1ZSH_SELECTED_WORKSPACE ]]; then
     j3w1zsh_usage_error "--no-packages is incompatible with --workspace."
   fi
+  J3W1ZSH_PACKAGE_REFRESH=0
+  if [[ $install_mode == explicit && $J3W1ZSH_NO_PACKAGES != 1 ]]; then
+    J3W1ZSH_PACKAGE_REFRESH=1
+  fi
+  export J3W1ZSH_PACKAGE_REFRESH
   local requested valid=false phase
   for requested in "$from_phase" "$only_phase"; do
     [[ -z $requested ]] && continue

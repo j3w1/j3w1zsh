@@ -31,7 +31,8 @@ j3w1zsh_plan_command() {
   fi
   J3W1ZSH_PRESET="$preset"
   J3W1ZSH_THEME_OVERRIDE="$theme"
-  export J3W1ZSH_SELECTED_WORKSPACE J3W1ZSH_PRESET J3W1ZSH_THEME_OVERRIDE
+  J3W1ZSH_PACKAGE_REFRESH=1
+  export J3W1ZSH_SELECTED_WORKSPACE J3W1ZSH_PRESET J3W1ZSH_THEME_OVERRIDE J3W1ZSH_PACKAGE_REFRESH
   j3w1zsh_prepare_selection 0
   if [[ $J3W1ZSH_OUTPUT_MODE == json ]]; then
     j3w1zsh_json_envelope plan ok "$(jq -cn --arg platform "$J3W1ZSH_PLATFORM" --arg preset "$J3W1ZSH_PRESET" --arg theme "$J3W1ZSH_THEME" --arg workspace "$J3W1ZSH_SELECTED_WORKSPACE" --arg digest "$(j3w1zsh_plan_digest)" --argjson actions "$(j3w1zsh_plan_json)" '{platform:$platform,preset:$preset,theme:$theme,workspace:(if $workspace=="" then null else $workspace end),plan_digest:$digest,actions:$actions}')"

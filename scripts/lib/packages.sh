@@ -170,7 +170,7 @@ j3w1zsh_pacman_path_owner() {
 
 j3w1zsh_guard_pacman_pnpm_collision() {
   local root bin_dir pnpm_link pnpx_link pnpm_target pnpx_target checkpoint
-  local resolved_pnpm resolved_pnpx pnpm_owner="" pnpx_owner=""
+  local resolved_pnpm resolved_pnpx pnpm_owner="" pnpx_owner="" pnpm_path_owner="" pnpx_path_owner=""
   root="$(j3w1zsh_pacman_collision_root)"
   bin_dir="${root%/}/usr/bin"
   pnpm_link="$bin_dir/pnpm"
@@ -186,6 +186,12 @@ j3w1zsh_guard_pacman_pnpm_collision() {
 
   resolved_pnpm="$(readlink -f -- "$pnpm_link" 2>/dev/null || true)"
   resolved_pnpx="$(readlink -f -- "$pnpx_link" 2>/dev/null || true)"
+  pnpm_path_owner="$(j3w1zsh_pacman_path_owner "$pnpm_link" || true)"
+  pnpx_path_owner="$(j3w1zsh_pacman_path_owner "$pnpx_link" || true)"
+  if [[ $pnpm_path_owner == pnpm && $pnpx_path_owner == pnpm ]] && pacman -Q -- pnpm >/dev/null 2>&1; then
+    j3w1zsh_clear_manual "$checkpoint"
+    return 0
+  fi
   pnpm_owner="$(j3w1zsh_pacman_path_owner "$pnpm_target" || true)"
   pnpx_owner="$(j3w1zsh_pacman_path_owner "$pnpx_target" || true)"
   if [[ -L $pnpm_link && -L $pnpx_link && $resolved_pnpm == "$pnpm_target" && $resolved_pnpx == "$pnpx_target" &&
@@ -386,32 +392,51 @@ j3w1zsh_install_package_set() {
     return 0
   fi
 
-  if ((${#missing[@]})); then
-    if [[ $manager == pacman && " ${missing[*]} " == *" pnpm "* ]]; then
+  local refresh="${J3W1ZSH_PACKAGE_REFRESH:-0}"
+  local transaction_packages=()
+  if [[ $refresh == 1 ]]; then
+    transaction_packages=("${packages[@]}")
+  else
+    transaction_packages=("${missing[@]}")
+  fi
+
+  if ((${#transaction_packages[@]})); then
+    if [[ $manager == pacman && " ${transaction_packages[*]} " == *" pnpm "* ]]; then
       j3w1zsh_guard_pacman_pnpm_collision
     fi
     case "$manager" in
     pacman)
-      if [[ ${J3W1ZSH_UPDATE_MODE:-0} == 1 || -f $(j3w1zsh_package_ledger_file) ]]; then
-        j3w1zsh_run sudo pacman -S --needed "${missing[@]}" || return $?
+      if [[ $refresh == 1 ]]; then
+        j3w1zsh_confirm "Allow pacman to perform a coherent full Arch upgrade and refresh ${#packages[@]} selected packages?" || return 1
+        j3w1zsh_run sudo pacman -Syu --needed "${packages[@]}" || return $?
       else
-        j3w1zsh_confirm "Allow pacman to perform a full Arch upgrade and install ${#missing[@]} required packages?" || return 1
-        j3w1zsh_run sudo pacman -Syu --needed "${missing[@]}" || return $?
+        j3w1zsh_run sudo pacman -S --needed "${missing[@]}" || return $?
       fi
       ;;
     pkg)
-      j3w1zsh_confirm "Allow pkg to upgrade Termux and install ${#missing[@]} required packages?" || return 1
-      j3w1zsh_run pkg upgrade -y || return $?
-      j3w1zsh_run pkg install -y "${missing[@]}" || return $?
+      if [[ $refresh == 1 ]]; then
+        j3w1zsh_confirm "Allow pkg to upgrade Termux and refresh ${#packages[@]} selected packages?" || return 1
+        j3w1zsh_run pkg upgrade -y || return $?
+        j3w1zsh_run pkg install -y "${packages[@]}" || return $?
+      else
+        j3w1zsh_confirm "Allow pkg to install ${#missing[@]} newly required packages without a full Termux upgrade?" || return 1
+        j3w1zsh_run pkg install -y "${missing[@]}" || return $?
+      fi
       ;;
     npm_global)
       if [[ $J3W1ZSH_PLATFORM == termux ]]; then
-        j3w1zsh_run npm install --global "${missing[@]}" || return $?
+        j3w1zsh_run npm install --global "${transaction_packages[@]}" || return $?
       else
-        j3w1zsh_run sudo npm install --global "${missing[@]}" || return $?
+        j3w1zsh_run sudo npm install --global "${transaction_packages[@]}" || return $?
       fi
       ;;
-    pip_user) j3w1zsh_run python -m pip install --user "${missing[@]}" || return $? ;;
+    pip_user)
+      if [[ $refresh == 1 ]]; then
+        j3w1zsh_run python -m pip install --user --upgrade "${packages[@]}" || return $?
+      else
+        j3w1zsh_run python -m pip install --user "${missing[@]}" || return $?
+      fi
+      ;;
     *) j3w1zsh_die "Unsupported package manager: $manager" ;;
     esac
   fi

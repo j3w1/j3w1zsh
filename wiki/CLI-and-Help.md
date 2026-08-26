@@ -19,6 +19,8 @@ Use `j3w1zsh help`, `j3w1zsh help edit`, `j3w1zsh help remote`, or `j3w1zsh help
 - Daily use: `edit`, `attach`, `remote`.
 - Declarative layers: `packages`, `theme`, `workspace`, `wiki`.
 
+`install` is the explicit refresh boundary for selected rolling software. Package-enabled runs refresh the selected platform, npm, Python-user, and WSL Codex sets even when their prior phase markers are complete; configuration-only phases keep normal fingerprint caching. `install --dry-run` and `plan` describe the full selected action without mutation. `update` updates j3w1zsh itself and does not imply a full operating-system or Termux upgrade.
+
 `packages repair-provenance` is an exceptional recovery command, not routine pruning. It requires an exact manager and one or more exact package names, supports a mutation-free dry-run, and accepts only ledger ownership claims that the named manager currently reports absent. Actual repair preserves local evidence, retains unrelated records, and invalidates phase `20-packages`.
 
 `edit [PATH]` runs `nvim -- PATH`. With no path it uses `J3W1ZSH_EDIT_ROOT`, defaulting to `$HOME/Documents`.

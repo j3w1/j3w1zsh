@@ -10,6 +10,8 @@ git status --short
 
 Review the complete diff, tracked filenames, executable modes, JSON schemas, generated logo derivative, bootstrap bytes, and checksums. Hosted evidence must identify the exact head and distinguish Ubuntu, official Arch container, Windows, simulated Termux, migration/update/fork, and pinned-Wiki jobs.
 
+Release review distinguishes rolling workstation software from immutable j3w1zsh artifacts. Do not freeze package-manager software or Codex CLI to the version observed while preparing a release. Do preserve and verify intentional implementation pins such as the product release, migration/bootstrap bytes and checksum, reviewed font bytes, Neovim lock, Oh My Zsh revision, and the official Codex installer artifact used to securely resolve/install the current stable CLI.
+
 ## Wiki publication
 
 The owner publishes the full reviewed Wiki before merge, verifies the Wiki commit is reachable, and updates `wiki-lock.json` in the code PR. Contributor PRs validate the pinned commit but do not need Wiki push rights. Contributors provide Wiki patches based on the pinned OID; an owner publishes them and updates the lock through code review.

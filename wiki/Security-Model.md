@@ -20,6 +20,8 @@ The Windows current-user font adapter hashes installed bytes before deciding to 
 
 Package reconciliation fails closed: each aggregate phase runs once, a child failure stops all later phases, and provenance requires positive exact-manager verification. Known Corepack/Pacman `pnpm` shims become a manual checkpoint; ambiguous path ownership is protected. The bounded provenance repair revalidates exact named records and manager state, preserves evidence, and cannot install, remove, or alter packages.
 
+Rolling refresh is an explicit install boundary. Arch uses one complete `-Syu --needed` transaction and never a sync-only partial-upgrade command; Termux uses its supported unprivileged upgrade path. Product update never silently broadens into a full platform upgrade. npm and pip receive validated direct package-name argv only. Codex stable-channel metadata must contain a strict stable release tag; a checksum-pinned official installer artifact installs that exact resolved release and verifies the result. A newer valid installed Codex is preserved, while an unclassifiable version stops for owner review. Health checks do not contact upstream version services.
+
 ## Workspace execution
 
 Profiles are strict JSON. Apply requires candidate review, explicit platform target, tracked-clean profile and sources, displayed digest, explicit trust, supported unqualified executable, and direct argv. Shells, `env`, privilege wrappers, traversal, symlinks, dirty indirection, arbitrary system destinations, and unsupported executables are rejected.
