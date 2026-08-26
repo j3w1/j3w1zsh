@@ -19,3 +19,5 @@ j3w1zsh remote attach [SESSION]
 ```
 
 Settings are `J3W1ZSH_REMOTE_HOST`, `J3W1ZSH_REMOTE_USER`, and `J3W1ZSH_REMOTE_ATTACH_COMMAND`. Host, user, command, and session tokens are strictly bounded before SSH. `tma` attaches an additional tmux client; it never disconnects a client already attached from another device. Session deletion always targets the exact name and requires confirmation.
+
+Interactive `tma` rows use real tab delimiters between the exact session name and display-only window, attachment, and creation metadata. Enter and Ctrl-X consume only the first exact field; metadata is never parsed to reconstruct a name. Direct `tma SESSION`, attached and detached picker rows, allowed punctuation, multi-client attachment, cancellation, and confirmed exact-session kill share that contract on WSL, native Arch, and Termux.

@@ -1,5 +1,45 @@
 #!/usr/bin/env bash
 
+j3w1zsh_wsl_interop_healthy() {
+  j3w1zsh_have powershell.exe || return 1
+  powershell.exe -NoLogo -NoProfile -NonInteractive -Command 'exit 0' </dev/null >/dev/null 2>&1
+}
+
+j3w1zsh_require_wsl_interop() {
+  local checkpoint=wsl-interop-restart
+  if j3w1zsh_wsl_interop_healthy; then
+    if j3w1zsh_manual_pending "$checkpoint"; then
+      j3w1zsh_clear_manual "$checkpoint"
+      j3w1zsh_log "Windows PE execution recovered; cleared checkpoint: $checkpoint"
+    fi
+    return 0
+  fi
+
+  local message
+  message="From Windows PowerShell run wsl --shutdown. WARNING: this stops every running WSL distribution. Reopen the j3w1zsh - arch wsl profile, then run j3w1zsh install --only 90-verify."
+  if ! j3w1zsh_manual_pending "$checkpoint"; then
+    j3w1zsh_mark_manual_pending "$checkpoint" "$message"
+  fi
+  j3w1zsh_warn "WSL interop cannot execute Windows programs. j3w1zsh will never shut down WSL automatically."
+  if [[ $J3W1ZSH_OUTPUT_MODE != json ]]; then
+    cat <<'EOF'
+
+From Windows PowerShell:
+
+  wsl --shutdown
+
+WARNING: this stops every running WSL distribution.
+
+Reopen the j3w1zsh - arch wsl profile, then resume only final verification:
+
+  j3w1zsh install --only 90-verify
+
+This bounded continuation does not rerun the Pacman package phase.
+EOF
+  fi
+  return "$J3W1ZSH_EXIT_CHECKPOINT"
+}
+
 j3w1zsh_platform_configure_wsl() {
   [[ $J3W1ZSH_TEST_MODE == 1 ]] && return 0
   local init_name

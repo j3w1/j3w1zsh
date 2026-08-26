@@ -10,7 +10,7 @@ Use `j3w1zsh help`, `j3w1zsh help edit`, `j3w1zsh help remote`, or `j3w1zsh help
 
 `--json` emits one envelope with `schema_version`, `command`, `status`, and `data`. Errors add a stable error code. JSON and plain output never include ANSI or a human banner.
 
-`doctor` checks required binaries plus the locally resolvable Git upstream. The upstream check makes no network request; use `update --dry-run` for current remote relation evidence.
+`doctor` checks required binaries plus the locally resolvable Git upstream. On WSL it also reports `wsl-interop` from actual harmless Windows PowerShell execution without touching the clipboard. The upstream check makes no network request; use `update --dry-run` for current remote relation evidence.
 
 ## Command families
 

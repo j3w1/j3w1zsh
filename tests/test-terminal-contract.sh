@@ -220,7 +220,11 @@ cat >"$codex_home/.local/bin/j3w1zsh" <<'EOF'
 #!/usr/bin/env bash
 exit 0
 EOF
-chmod +x "$codex_home/.local/bin/curl" "$codex_home/.local/bin/j3w1zsh"
+cat >"$codex_home/.local/bin/powershell.exe" <<'EOF'
+#!/usr/bin/env bash
+[[ $* == '-NoLogo -NoProfile -NonInteractive -Command exit 0' ]]
+EOF
+chmod +x "$codex_home/.local/bin/curl" "$codex_home/.local/bin/j3w1zsh" "$codex_home/.local/bin/powershell.exe"
 mkdir -p "$codex_home/.local/state/j3w1zsh/phases"
 jq -n --arg preset "$codex_preset" '{preset_source:$preset,theme_source:"j3w1zsh",no_packages:false,packages_only:false}' \
   >"$codex_home/.local/state/j3w1zsh/phases/00-preflight.json"
@@ -235,6 +239,7 @@ codex_doctor="$(env HOME="$codex_home" XDG_STATE_HOME="$codex_home/.local/state"
     set -Eeuo pipefail
     source "$J3W1ZSH_REPO_ROOT/scripts/lib/core/init.sh"
     source "$J3W1ZSH_REPO_ROOT/scripts/lib/presets.sh"
+    source "$J3W1ZSH_REPO_ROOT/scripts/platforms/wsl.sh"
     source "$J3W1ZSH_REPO_ROOT/scripts/commands/status.sh"
     J3W1ZSH_OUTPUT_MODE=json
     export J3W1ZSH_OUTPUT_MODE
@@ -251,6 +256,7 @@ env \
     set -Eeuo pipefail
     source "$J3W1ZSH_REPO_ROOT/scripts/lib/core/init.sh"
     source "$J3W1ZSH_REPO_ROOT/scripts/lib/presets.sh"
+    source "$J3W1ZSH_REPO_ROOT/scripts/platforms/wsl.sh"
     source "$J3W1ZSH_REPO_ROOT/scripts/phases/90-verify.sh"
     j3w1zsh_resolve_preset "$TEST_PRESET"
     phase_90_verify

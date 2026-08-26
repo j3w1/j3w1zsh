@@ -92,7 +92,7 @@ j3w1zsh_build_base_plan() {
         "configure user-owned Git and GitHub access interactively" false true github-login true "Git identity and GitHub authentication are reported"
     fi
     j3w1zsh_plan_add verify 90-verify verification core "" "" \
-      "verify every selected action before recording completion" false false "" false "selected command, links, theme, tmux and Neovim checks pass"
+      "verify every selected action before recording completion" false false "" false "selected command, links, theme, tmux, Neovim, and WSL interop checks pass"
   fi
 }
 

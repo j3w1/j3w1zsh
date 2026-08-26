@@ -12,6 +12,8 @@ The WSL-only adapter owns:
 
 When a host restart is required, state is persisted and the installer exits 20 with exact PowerShell commands. Rerun the same installer after reopening WSL.
 
+`j3w1zsh doctor` reports `wsl-interop` from an actual harmless, non-interactive Windows PowerShell execution probe; executable paths or a binfmt registration file alone are insufficient. Phase `90-verify` repeats that execution proof without reading or writing the clipboard. If a rolling Arch upgrade leaves Windows PE execution unusable, phase 90 records `wsl-interop-restart`, exits 20, and instructs the owner to run `wsl --shutdown` from Windows PowerShell. This stops every running WSL distribution, so j3w1zsh never invokes it automatically. Reopen `j3w1zsh - arch wsl` and run `j3w1zsh install --only 90-verify`; this clears the checkpoint only after PE execution succeeds and does not rerun the Pacman phase.
+
 The Windows Terminal adapter uses a fragment instead of rewriting `settings.json`. Migration preserves a discovered existing profile GUID and updates the lowercase profile in place to avoid duplicates.
 
 The current-user JetBrains Mono Nerd Font is verified against the SHA-256 pin before registration. An existing regular, non-reparse legacy font with that exact digest is already satisfied and is never rewritten, including while Windows Terminal has it open. New installations and future changed pins use a SHA-256-addressed filename beside preserved older files; the owned HKCU font value advances only to verified bytes. j3w1zsh does not automatically prune an older font. Download staging is unique to the running process and is removed only after its exact ownership marker and temporary parent validate.

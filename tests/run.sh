@@ -65,6 +65,7 @@ tests/test-packages-themes.sh
 tests/test-package-execution.sh
 tests/test-temp-cleanup.sh
 tests/test-wsl-host-theme.sh
+tests/test-wsl-interop.sh
 tests/test-terminal-contract.sh
 tests/test-remote.sh
 tests/test-tma.sh
