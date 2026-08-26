@@ -65,7 +65,7 @@ session_target() {
 
 session_exists() {
   local target
-  target="$(session_target "$1")"
+  target="$(session_target "$1")" || return 1
   tmux has-session -t "$target" 2>/dev/null
 }
 

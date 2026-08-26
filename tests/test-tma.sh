@@ -145,16 +145,24 @@ EOF
     printf 'Real tmux serialized literal backslash-t characters.\n' >&2
     exit 1
   fi
-  grep -q $'^real.one\t1 window(s)\tdetached\tcreated ' <<<"$real_rows"
-  grep -q $'^real-two\t1 window(s)\tdetached\tcreated ' <<<"$real_rows"
-  printf 'n' | PATH="$real_bin:$PATH" "$tma" --kill real.one >/dev/null
   real_names="$("$real_tmux" -L "$real_tmux_socket" list-sessions -F '#{session_name}')"
-  grep -Fxq 'real.one' <<<"$real_names"
-  printf 'y' | PATH="$real_bin:$PATH" "$tma" --kill real.one >/dev/null
-  real_names="$("$real_tmux" -L "$real_tmux_socket" list-sessions -F '#{session_name}')"
+  grep -Fq $'real-two\t1 window(s)\tdetached\tcreated ' <<<"$real_rows"
   if grep -Fxq 'real.one' <<<"$real_names"; then
-    printf 'tma did not kill the exact dotted real-tmux session.\n' >&2
-    exit 1
+    grep -Fq $'real.one\t1 window(s)\tdetached\tcreated ' <<<"$real_rows"
+    printf 'n' | PATH="$real_bin:$PATH" "$tma" --kill real.one >/dev/null
+    printf 'y' | PATH="$real_bin:$PATH" "$tma" --kill real.one >/dev/null
+    real_names="$("$real_tmux" -L "$real_tmux_socket" list-sessions -F '#{session_name}')"
+    if grep -Fxq 'real.one' <<<"$real_names"; then
+      printf 'tma did not kill the exact dotted real-tmux session.\n' >&2
+      exit 1
+    fi
+  else
+    grep -Fxq 'real_one' <<<"$real_names"
+    grep -Fq $'real_one\t1 window(s)\tdetached\tcreated ' <<<"$real_rows"
+    if printf 'n' | PATH="$real_bin:$PATH" "$tma" --kill real.one >/dev/null 2>&1; then
+      printf 'tma accepted a dotted name that this tmux normalized to an underscore.\n' >&2
+      exit 1
+    fi
   fi
   "$real_tmux" -L "$real_tmux_socket" has-session -t '=real-two'
 fi
