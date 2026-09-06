@@ -87,6 +87,9 @@ j3w1zsh_doctor_command() {
   if [[ $no_packages != true && $J3W1ZSH_PLATFORM == wsl ]] && j3w1zsh_preset_has_feature codex; then
     required+=(codex)
   fi
+  if [[ $no_packages != true && ( $J3W1ZSH_PLATFORM == arch || $J3W1ZSH_PLATFORM == wsl ) ]] && j3w1zsh_preset_has_feature claude; then
+    required+=(claude)
+  fi
   for command_name in "${required[@]}"; do
     ok=false
     j3w1zsh_have "$command_name" && ok=true

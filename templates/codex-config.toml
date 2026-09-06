@@ -1,4 +1,5 @@
-# Safe, portable Codex CLI baseline.
+# j3w1zsh Codex baseline. Only the documented Developer Docs MCP URL is
+# continuously managed; policy values below are first-install defaults only.
 # Authentication, installation IDs, sessions, plugins, and machine paths are never tracked.
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"

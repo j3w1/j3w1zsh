@@ -4,6 +4,8 @@ scripts/lib/core/filesystem.sh	1	ephemeral-script-owned	Runtime helper removes o
 scripts/lib/themes.sh	2	persistent-product-derived	Theme rollover removes only the exact validated generated theme.previous directory after replacement.
 scripts/lib/workspace-v2.sh	1	arbitrary-user-owned	Workspace apply removes only an exact validated home-file destination after preserving its prior bytes.
 tests/test-cli-output.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
+tests/test-codex-baseline.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
+tests/test-claude.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
 tests/test-foundation.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.
 tests/test-legacy-migration.sh	2	test-fixture	Fixture cleanup removes only paths created beneath this test process's mktemp root.
 tests/test-linker.sh	1	test-fixture	EXIT trap removes only this test process's mktemp fixture root.

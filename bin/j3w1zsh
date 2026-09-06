@@ -48,6 +48,8 @@ source "$J3W1ZSH_REPO_ROOT/scripts/lib/themes.sh"
 source "$J3W1ZSH_REPO_ROOT/scripts/lib/workspace-v2.sh"
 # shellcheck source=scripts/lib/wiki.sh
 source "$J3W1ZSH_REPO_ROOT/scripts/lib/wiki.sh"
+# shellcheck source=scripts/lib/codex-config.sh
+source "$J3W1ZSH_REPO_ROOT/scripts/lib/codex-config.sh"
 # shellcheck source=scripts/legacy/workspace-v1-converter.sh
 source "$J3W1ZSH_REPO_ROOT/scripts/legacy/workspace-v1-converter.sh"
 # shellcheck source=scripts/legacy/former-repository.sh
@@ -60,7 +62,7 @@ for adapter in arch wsl termux; do
   # shellcheck source=/dev/null
   source "$J3W1ZSH_REPO_ROOT/scripts/platforms/$adapter.sh"
 done
-for command_file in help install plan status editor-session packages theme backup update remote wiki migrate; do
+for command_file in help install plan status editor-session packages theme backup update remote codex claude wiki migrate; do
   # shellcheck source=/dev/null
   source "$J3W1ZSH_REPO_ROOT/scripts/commands/$command_file.sh"
 done
@@ -86,6 +88,8 @@ restore) j3w1zsh_restore_command "$@" ;;
 reset-phase) j3w1zsh_reset_phase_command "$@" ;;
 update) j3w1zsh_update_command "$@" ;;
 remote) j3w1zsh_remote_command "$@" ;;
+codex) j3w1zsh_codex_command "$@" ;;
+claude) j3w1zsh_claude_command "$@" ;;
 wiki) j3w1zsh_wiki_command "$@" ;;
 migrate) j3w1zsh_migrate_command "$@" ;;
 *) j3w1zsh_usage_error "Unknown command: $J3W1ZSH_ACTIVE_COMMAND" ;;

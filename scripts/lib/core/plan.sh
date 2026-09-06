@@ -85,8 +85,15 @@ j3w1zsh_build_base_plan() {
         "runtime lock and every managed plugin Git HEAD match the reviewed tracked lock"
     fi
     if [[ $J3W1ZSH_NO_PACKAGES != 1 ]] && j3w1zsh_preset_has_feature codex && [[ $J3W1ZSH_PLATFORM == wsl ]]; then
+      local codex_baseline_plan codex_baseline_action codex_baseline_reason
+      codex_baseline_plan="$(j3w1zsh_codex_config_plan_json)"
+      codex_baseline_action="$(jq -r '.actions[0].action' <<<"$codex_baseline_plan")"
+      codex_baseline_reason="$(jq -r '.actions[0].reason // empty' <<<"$codex_baseline_plan")"
       j3w1zsh_plan_add codex 70-codex host-adapter preset "" "$HOME/.codex" \
         "refresh Codex CLI from OpenAI's current stable channel without replacing user settings or downgrading a newer valid version" false true codex-login true "an installed usable stable Codex CLI and user-owned login state are reported"
+      j3w1zsh_plan_add codex-baseline 70-codex file-reconciliation codex-baseline "" "$HOME/.codex/config.toml" \
+        "${codex_baseline_action} portable key: $J3W1ZSH_CODEX_MANAGED_KEY${codex_baseline_reason:+ ($codex_baseline_reason)}" false false "" true \
+        "only the allowlisted portable key is reconciled; user-owned values remain untouched"
     fi
     if j3w1zsh_preset_has_feature github; then
       j3w1zsh_plan_add github 80-github host-adapter preset "" "$HOME/.ssh" \

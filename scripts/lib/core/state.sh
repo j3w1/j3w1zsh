@@ -37,6 +37,11 @@ j3w1zsh_input_digest() {
       ;;
     esac
     case "$phase" in
+    70-codex)
+      sha256sum "$J3W1ZSH_REPO_ROOT/templates/codex-config.toml"
+      sha256sum "$J3W1ZSH_REPO_ROOT/templates/codex-baseline-ownership.json"
+      sha256sum "$J3W1ZSH_REPO_ROOT/scripts/codex-config.py"
+      ;;
     60-neovim | 90-verify)
       sha256sum "$(j3w1zsh_neovim_tracked_lock_path)"
       ;;

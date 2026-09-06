@@ -24,7 +24,7 @@ jq -e '.schema_version == 1 and .id == "j3w1"' presets/j3w1.json >/dev/null
 jq -e '.schema_version == 1 and .id == "minimal"' presets/minimal.json >/dev/null
 jq -e '.schema_version == 1 and .id == "j3w1zsh" and (.ansi | length == 16)' themes/j3w1zsh/theme.json >/dev/null
 jq -e '.properties.schema_version.const == 2' schemas/workspace-profile-v2.schema.json >/dev/null
-jq -e '.properties.schema_version.const == 1' schemas/preset-v1.schema.json schemas/theme-v1.schema.json >/dev/null
+jq -e '.properties.schema_version.const == 1' schemas/preset-v1.schema.json schemas/theme-v1.schema.json schemas/codex-baseline-v1.schema.json >/dev/null
 
 printf 'Checking executable product and test entrypoints...\n'
 expected_executables=(
@@ -66,6 +66,8 @@ tests/test-package-execution.sh
 tests/test-temp-cleanup.sh
 tests/test-wsl-host-theme.sh
 tests/test-wsl-interop.sh
+tests/test-codex-baseline.sh
+tests/test-claude.sh
 tests/test-terminal-contract.sh
 tests/test-neovim-reconciliation.sh
 tests/test-remote.sh

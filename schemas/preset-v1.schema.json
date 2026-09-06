@@ -14,7 +14,7 @@
       "uniqueItems": true,
       "items": {
         "enum": [
-          "shell", "tmux", "neovim", "github", "codex", "remote",
+          "shell", "tmux", "neovim", "github", "codex", "claude", "remote",
           "host-theme", "developer-tools", "workspace"
         ]
       }
@@ -35,7 +35,7 @@
     "packageArray": {
       "type": "array",
       "uniqueItems": true,
-      "items": { "type": "string", "pattern": "^[A-Za-z0-9@._+:-]+$" }
+      "items": { "type": "string", "pattern": "^([A-Za-z0-9@._+:-]+|@[A-Za-z0-9._+:-]+/[A-Za-z0-9._+:-]+)$" }
     },
     "archPackages": {
       "type": "object",

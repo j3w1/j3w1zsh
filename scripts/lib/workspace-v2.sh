@@ -155,7 +155,7 @@ j3w1zsh_workspace_validate_target() {
       j3w1zsh_die "$platform target contains an unsupported managed destination."
   fi
 
-  jq -e --arg platform "$platform" 'all(.targets[$platform].packages[]; type == "array" and length == (unique | length) and all(.[]; type == "string" and test("^[A-Za-z0-9@._+:-]+$")))' "$file" >/dev/null ||
+  jq -e --arg platform "$platform" 'all(.targets[$platform].packages[]; type == "array" and length == (unique | length) and all(.[]; type == "string" and test("^([A-Za-z0-9@._+:-]+|@[A-Za-z0-9._+:-]+/[A-Za-z0-9._+:-]+)$")))' "$file" >/dev/null ||
     j3w1zsh_die "$platform package arrays contain invalid or duplicate names."
   j3w1zsh_workspace_validate_commands "$file" "$platform"
 }

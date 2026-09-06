@@ -16,7 +16,7 @@ j3w1zsh_validate_package_overrides() {
     ([.additions,.exclusions] | all(
       type == "object" and
       (all(keys[]; . == "pacman" or . == "pkg" or . == "npm_global" or . == "pip_user")) and
-      all(.[]; type == "array" and length == (unique | length) and all(.[]; type == "string" and test("^[A-Za-z0-9@._+:-]+$")))
+      all(.[]; type == "array" and length == (unique | length) and all(.[]; type == "string" and test("^([A-Za-z0-9@._+:-]+|@[A-Za-z0-9._+:-]+/[A-Za-z0-9._+:-]+)$")))
     ))
   ' "$file" >/dev/null || j3w1zsh_die "Invalid package override schema: $file"
 }
@@ -37,22 +37,31 @@ j3w1zsh_required_packages_json() {
   local required='[]' package
   case "$J3W1ZSH_PLATFORM:$manager" in
   arch:pacman | wsl:pacman | termux:pkg) required="$(j3w1zsh_core_packages_json "$manager")" ;;
+  arch:npm_global | wsl:npm_global | termux:npm_global | arch:pip_user | wsl:pip_user | termux:pip_user) ;;
   *) printf '[]\n'; return 0 ;;
   esac
   local feature_packages='[]'
-  j3w1zsh_preset_has_feature shell && feature_packages="$(jq -cn --argjson value "$feature_packages" '$value + ["curl","zsh"]')"
-  j3w1zsh_preset_has_feature tmux && feature_packages="$(jq -cn --argjson value "$feature_packages" '$value + ["fzf","tmux"]')"
-  j3w1zsh_preset_has_feature neovim && feature_packages="$(jq -cn --argjson value "$feature_packages" '$value + ["fd","neovim","ripgrep"]')"
-  j3w1zsh_preset_has_feature remote && feature_packages="$(jq -cn --argjson value "$feature_packages" '$value + ["openssh"]')"
-  j3w1zsh_preset_has_feature host-theme && feature_packages="$(jq -cn --argjson value "$feature_packages" '$value + ["curl"]')"
-  j3w1zsh_preset_has_feature workspace && feature_packages="$(jq -cn --argjson value "$feature_packages" '$value + ["git","jq"]')"
-  if j3w1zsh_preset_has_feature github; then
-    package=github-cli
-    [[ $J3W1ZSH_PLATFORM != termux ]] || package=gh
-    feature_packages="$(jq -cn --argjson value "$feature_packages" --arg package "$package" '$value + ["openssh",$package]')"
+  if [[ $manager == pacman || $manager == pkg ]]; then
+    j3w1zsh_preset_has_feature shell && feature_packages="$(jq -cn --argjson value "$feature_packages" '$value + ["curl","zsh"]')"
+    j3w1zsh_preset_has_feature tmux && feature_packages="$(jq -cn --argjson value "$feature_packages" '$value + ["fzf","tmux"]')"
+    j3w1zsh_preset_has_feature neovim && feature_packages="$(jq -cn --argjson value "$feature_packages" '$value + ["fd","neovim","ripgrep"]')"
+    j3w1zsh_preset_has_feature remote && feature_packages="$(jq -cn --argjson value "$feature_packages" '$value + ["openssh"]')"
+    j3w1zsh_preset_has_feature host-theme && feature_packages="$(jq -cn --argjson value "$feature_packages" '$value + ["curl"]')"
+    j3w1zsh_preset_has_feature workspace && feature_packages="$(jq -cn --argjson value "$feature_packages" '$value + ["git","jq"]')"
+    if j3w1zsh_preset_has_feature github; then
+      package=github-cli
+      [[ $J3W1ZSH_PLATFORM != termux ]] || package=gh
+      feature_packages="$(jq -cn --argjson value "$feature_packages" --arg package "$package" '$value + ["openssh",$package]')"
+    fi
+    if j3w1zsh_preset_has_feature codex && [[ $J3W1ZSH_PLATFORM == wsl ]]; then
+      feature_packages="$(jq -cn --argjson value "$feature_packages" '$value + ["curl"]')"
+    fi
   fi
-  if j3w1zsh_preset_has_feature codex && [[ $J3W1ZSH_PLATFORM == wsl ]]; then
-    feature_packages="$(jq -cn --argjson value "$feature_packages" '$value + ["curl"]')"
+  if j3w1zsh_preset_has_feature claude && [[ $J3W1ZSH_PLATFORM == arch || $J3W1ZSH_PLATFORM == wsl ]]; then
+    case "$manager" in
+    pacman) feature_packages="$(jq -cn --argjson value "$feature_packages" '$value + ["nodejs-lts-krypton","npm"]')" ;;
+    npm_global) feature_packages="$(jq -cn --argjson value "$feature_packages" '$value + ["@anthropic-ai/claude-code"]')" ;;
+    esac
   fi
   jq -cn --argjson required "$required" --argjson features "$feature_packages" '$required + $features | unique | sort'
 }
@@ -145,7 +154,7 @@ j3w1zsh_validate_package_ledger() {
         type == "object" and
         (keys | sort) == (["declaring_layers","first_seen_product_version","installed_by_j3w1zsh","last_required_plan_digest","manager","package","pre_existing"] | sort) and
         (.manager == "pacman" or .manager == "pkg" or .manager == "npm_global" or .manager == "pip_user") and
-        (.package | type == "string" and test("^[A-Za-z0-9@._+:-]+$")) and
+        (.package | type == "string" and test("^([A-Za-z0-9@._+:-]+|@[A-Za-z0-9._+:-]+/[A-Za-z0-9._+:-]+)$")) and
         (.declaring_layers | type == "array" and length == (unique | length) and all(.[]; . == "core" or . == "preset" or . == "user" or . == "workspace")) and
         (.pre_existing | type == "boolean") and (.installed_by_j3w1zsh | type == "boolean") and
         (.first_seen_product_version | type == "string" and length > 0) and

@@ -56,9 +56,10 @@ rolling sources. Arch/WSL first synchronizes package databases and reconciles
 `archlinux-keyring`, then immediately performs one full upgrade with the complete selected
 Pacman set; both transactions form one fail-closed package phase. Termux retains its supported
 `pkg` upgrade/install semantics, selected npm and user-level Python packages remain current, and
-WSL follows the current stable official Codex CLI. Newer valid manually installed versions are
-not downgraded. `update` remains a protected j3w1zsh source fast-forward and never performs an
-unconditional full platform upgrade. Run the dry-run first to review the sequence.
+WSL follows the current stable official Codex CLI. Selected Claude Code packages follow the
+official npm channel on native Arch (best effort) and WSL. Newer valid manually installed versions
+are not downgraded. `update` remains a protected j3w1zsh source fast-forward and never performs
+an unconditional full platform upgrade. Run the dry-run first to review the sequence.
 
 Do not pipe mutable `main` into a shell. Versioned and migration bootstraps must be downloaded
 from an immutable commit or tag, verified against the checksum tracked at that same revision,
@@ -70,7 +71,7 @@ inspected, and dry-run first. See [Installation Methods](https://github.com/j3w1
 j3w1zsh install|plan|update|status|doctor|platform
 j3w1zsh backup|restore|reset-phase|migrate
 j3w1zsh edit|attach|remote
-j3w1zsh packages|theme|workspace|wiki
+j3w1zsh packages|theme|workspace|codex|claude|wiki
 ```
 
 Run `j3w1zsh help`, `j3w1zsh help edit`, or `j3w1zsh help remote` for the exact contract.
@@ -98,9 +99,20 @@ the command until `--`. Machine output is one stable JSON envelope with no banne
 overwritten. Presets, package overrides, themes, workspaces, Wiki locks, and agent routes are
 strict JSON and are never sourced. Conflicting managed files are backed up before replacement.
 
-Credentials, private SSH keys, Codex or GitHub sessions, histories, private repositories,
+Credentials, private SSH keys, Claude Code, Codex, or GitHub sessions, histories, private repositories,
 documents, databases, and machine identity remain user-owned and are neither migrated nor
 logged.
+
+On WSL, j3w1zsh treats `~/.codex/config.toml` as user-owned. It reconciles only the documented
+public OpenAI Developer Docs MCP URL; approval/sandbox policy, models, project trust, local MCPs,
+authentication, sessions, plugins, paths, and unknown Codex settings always remain user-owned.
+Use `j3w1zsh codex status` to inspect bounded baseline metadata.
+
+On native Arch (best effort) and WSL, selecting the `claude` feature installs the official Claude
+Code npm package. j3w1zsh never launches Claude Code or reads, writes, copies, or logs Claude
+settings, authentication, sessions, MCP servers, plugins, trust decisions, or project state.
+Use `j3w1zsh claude status` for a safe executable/package report; use Claude Code itself for login
+and configuration.
 
 ## Workspaces and migration
 

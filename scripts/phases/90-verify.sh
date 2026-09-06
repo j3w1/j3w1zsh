@@ -12,6 +12,9 @@ phase_90_verify() {
   if [[ $J3W1ZSH_NO_PACKAGES != 1 && $J3W1ZSH_PLATFORM == wsl ]] && j3w1zsh_preset_has_feature codex; then
     required+=(codex)
   fi
+  if [[ $J3W1ZSH_NO_PACKAGES != 1 && ( $J3W1ZSH_PLATFORM == arch || $J3W1ZSH_PLATFORM == wsl ) ]] && j3w1zsh_preset_has_feature claude; then
+    required+=(claude)
+  fi
   local missing=() command_name
   for command_name in "${required[@]}"; do
     j3w1zsh_have "$command_name" || missing+=("$command_name")

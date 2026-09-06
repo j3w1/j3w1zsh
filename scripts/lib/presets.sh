@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-readonly J3W1ZSH_FEATURES='["shell","tmux","neovim","github","codex","remote","host-theme","developer-tools","workspace"]'
+readonly J3W1ZSH_FEATURES='["shell","tmux","neovim","github","codex","claude","remote","host-theme","developer-tools","workspace"]'
 
 j3w1zsh_validate_preset() {
   local file="$1"
@@ -14,10 +14,10 @@ j3w1zsh_validate_preset() {
     (.platforms | type == "object" and (keys | sort) == ["arch","termux","wsl"]) and
     ([.platforms.arch,.platforms.wsl] | all(
       type == "object" and (keys | sort) == ["npm_global","pacman","pip_user"] and
-      all(.[]; type == "array" and length == (unique | length) and all(.[]; type == "string" and test("^[A-Za-z0-9@._+:-]+$")))
+      all(.[]; type == "array" and length == (unique | length) and all(.[]; type == "string" and test("^([A-Za-z0-9@._+:-]+|@[A-Za-z0-9._+:-]+/[A-Za-z0-9._+:-]+)$")))
     )) and
     (.platforms.termux | type == "object" and (keys | sort) == ["npm_global","pip_user","pkg"] and
-      all(.[]; type == "array" and length == (unique | length) and all(.[]; type == "string" and test("^[A-Za-z0-9@._+:-]+$")))
+      all(.[]; type == "array" and length == (unique | length) and all(.[]; type == "string" and test("^([A-Za-z0-9@._+:-]+|@[A-Za-z0-9._+:-]+/[A-Za-z0-9._+:-]+)$")))
     )
   ' "$file" >/dev/null || j3w1zsh_die "Invalid preset schema: $file"
 }
