@@ -2,6 +2,9 @@
 
 readonly J3W1ZSH_CODEX_STABLE_CHANNEL_URL="https://releases.openai.com/codex/channels/latest"
 
+# shellcheck source=scripts/lib/codex-config.sh
+source "$J3W1ZSH_REPO_ROOT/scripts/lib/codex-config.sh"
+
 j3w1zsh_codex_version_valid() {
   [[ $1 =~ ^[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$ ]]
 }
@@ -118,7 +121,7 @@ phase_70_codex() {
     fi
   fi
 
-  j3w1zsh_write_if_missing "$HOME/.codex/config.toml" "$J3W1ZSH_REPO_ROOT/templates/codex-config.toml"
+  j3w1zsh_codex_config_reconcile
   if ! env CODEX_HOME="$HOME/.codex" "$codex_bin" login status >/dev/null 2>&1; then
     j3w1zsh_warn "Codex is installed but authentication remains user-owned: run 'codex login --device-auth'."
   fi

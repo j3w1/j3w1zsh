@@ -1,6 +1,6 @@
 # CLI and Help
 
-Use `j3w1zsh help`, `j3w1zsh help edit`, `j3w1zsh help remote`, or `j3w1zsh help packages`. Global output options may appear before or after the command until `--`:
+Use `j3w1zsh help`, `j3w1zsh help edit`, `j3w1zsh help remote`, `j3w1zsh help codex`, `j3w1zsh help claude`, or `j3w1zsh help packages`. Global output options may appear before or after the command until `--`:
 
 ```text
 --json
@@ -16,7 +16,7 @@ Use `j3w1zsh help`, `j3w1zsh help edit`, `j3w1zsh help remote`, or `j3w1zsh help
 
 - Installation: `install`, `plan`, `status`, `doctor`, `platform`, `reset-phase`.
 - Maintenance: `update`, `backup`, `restore`, `migrate`.
-- Daily use: `edit`, `attach`, `remote`.
+- Daily use: `edit`, `attach`, `remote`, `codex`, `claude`.
 - Declarative layers: `packages`, `theme`, `workspace`, `wiki`.
 
 `install` is the explicit refresh boundary for selected rolling software. Package-enabled runs refresh the selected platform, npm, Python-user, and WSL Codex sets even when their prior phase markers are complete; configuration-only phases keep normal fingerprint caching. `install --dry-run` and `plan` describe the full selected action without mutation. `update` updates j3w1zsh itself and does not imply a full operating-system or Termux upgrade.
@@ -26,6 +26,13 @@ Use `j3w1zsh help`, `j3w1zsh help edit`, `j3w1zsh help remote`, or `j3w1zsh help
 `edit [PATH]` runs `nvim -- PATH`. With no path it uses `J3W1ZSH_EDIT_ROOT`, defaulting to `$HOME/Documents`.
 
 `attach` opens `tma`; `attach SESSION` attaches exactly that session; `--new`, `--list`, and confirmed `--kill` are bounded operations. Attaching creates another tmux client and does not disconnect an existing client.
+
+`codex status` reports only public portable-baseline metadata on WSL. `codex disable openaiDeveloperDocs` opts out without changing the current user config; `codex reset openaiDeveloperDocs --yes` explicitly restores only the managed public endpoint. See [Configuration and User Overrides](Configuration-and-User-Overrides) for the ownership contract.
+
+`claude status` is available on native Arch (best effort) and WSL. It reports only executable
+availability and local npm package metadata; it does not launch Claude Code or inspect
+authentication, configuration, session, MCP, plugin, trust, or project state. See
+[Configuration and User Overrides](Configuration-and-User-Overrides) for the ownership boundary.
 
 ## Exit codes
 

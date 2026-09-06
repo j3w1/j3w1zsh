@@ -97,7 +97,6 @@ jq '
 chmod +x "$codex_binary"
 codex_installer_sha="$(sha256sum "$codex_installer" | awk '{print $1}')"
 codex_failure_installer_sha="$(sha256sum "$codex_failure_installer" | awk '{print $1}')"
-codex_config_before="$(sha256sum "$codex_home/.codex/config.toml")"
 codex_owner_state_before="$(sha256sum "$codex_home/.codex/owner-state")"
 
 run_codex_phase() {
@@ -132,8 +131,11 @@ run_codex_phase
 [[ -x $codex_home/.local/bin/codex ]]
 [[ $(<"$codex_version_file") == 0.149.1 ]]
 grep -qx 'install-release=0.149.1' "$codex_log"
-[[ $(sha256sum "$codex_home/.codex/config.toml") == "$codex_config_before" ]]
+grep -qx 'owner-authored = true' "$codex_home/.codex/config.toml"
+grep -Fqx 'url = "https://developers.openai.com/mcp"' "$codex_home/.codex/config.toml"
 [[ $(sha256sum "$codex_home/.codex/owner-state") == "$codex_owner_state_before" ]]
+[[ -f $codex_home/.local/state/j3w1zsh/codex/baseline.json ]]
+[[ -z $(rg -n 'owner-authored|owner-authentication-state' "$codex_home/.local/state/j3w1zsh/codex/baseline.json") ]]
 grep -qx 'login-status' "$codex_log"
 install_count="$(grep -c '^install-release=' "$codex_log")"
 run_codex_phase

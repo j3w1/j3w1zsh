@@ -85,7 +85,7 @@ j3w1zsh_packages_command() {
     esac
     local package targets_json unique_count candidates data
     for package in "${repair_packages[@]}"; do
-      [[ $package =~ ^[A-Za-z0-9@._+:-]+$ ]] || j3w1zsh_usage_error "Invalid package name for provenance repair: $package"
+      [[ $package =~ ^([A-Za-z0-9@._+:-]+|@[A-Za-z0-9._+:-]+/[A-Za-z0-9._+:-]+)$ ]] || j3w1zsh_usage_error "Invalid package name for provenance repair: $package"
     done
     targets_json="$(printf '%s\n' "${repair_packages[@]}" | jq -Rsc 'split("\n")[:-1]')"
     unique_count="$(jq 'unique | length' <<<"$targets_json")"

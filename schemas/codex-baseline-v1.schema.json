@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/j3w1/j3w1zsh/blob/main/schemas/codex-baseline-v1.schema.json",
+  "title": "j3w1zsh Codex portable baseline ownership v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "keys"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "keys": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/key" }
+    }
+  },
+  "$defs": {
+    "key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "ownership"],
+      "properties": {
+        "path": {
+          "enum": [
+            "mcp_servers.openaiDeveloperDocs.url",
+            "approval_policy",
+            "sandbox_mode",
+            "sandbox_workspace_write.network_access"
+          ]
+        },
+        "ownership": { "enum": ["managed-portable", "initial-default"] },
+        "historical_values": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "retired": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

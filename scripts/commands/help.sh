@@ -20,6 +20,8 @@ Usage:
   j3w1zsh edit [PATH]
   j3w1zsh attach [SESSION]|--list|--new NAME|--kill NAME
   j3w1zsh remote setup-host|configure-client|attach|status
+  j3w1zsh codex status|disable openaiDeveloperDocs|reset openaiDeveloperDocs --yes
+  j3w1zsh claude status [--json]
   j3w1zsh packages plan|status|prune|repair-provenance
   j3w1zsh theme list|show|current|apply
   j3w1zsh workspace scan|validate|plan|audit|apply|status|resume|migrate
@@ -89,6 +91,33 @@ the native Termux client flow. Credentials and authentication remain user-owned.
 EOF
 }
 
+j3w1zsh_help_codex() {
+  cat <<'EOF'
+Usage:
+  j3w1zsh codex status [--json]
+  j3w1zsh codex disable openaiDeveloperDocs
+  j3w1zsh codex reset openaiDeveloperDocs --yes
+
+On WSL, j3w1zsh reconciles only its documented portable OpenAI Developer Docs
+MCP URL. Existing policy, project, local MCP, authentication, session, plugin,
+and unknown Codex configuration remains user-owned. disable retains the current
+user config and prevents future reconciliation; reset explicitly restores only
+the portable URL to the tracked baseline.
+EOF
+}
+
+j3w1zsh_help_claude() {
+  cat <<'EOF'
+Usage:
+  j3w1zsh claude status [--json]
+
+On native Arch (best effort) and WSL, the claude preset feature installs the
+official Claude Code npm package. This command reports executable and local npm
+package availability without launching Claude Code or inspecting any Claude
+configuration, authentication, session, MCP, plugin, trust, or project state.
+EOF
+}
+
 j3w1zsh_help_plan() {
   cat <<'EOF'
 Usage: j3w1zsh plan [FILE] [--preset NAME|FILE] [--theme NAME] [--json]
@@ -120,9 +149,10 @@ j3w1zsh_help_command() {
   install) j3w1zsh_help_install ;;
   edit) j3w1zsh_help_edit ;;
   remote) j3w1zsh_help_remote ;;
+  claude) j3w1zsh_help_claude ;;
   plan) j3w1zsh_help_plan ;;
   packages) j3w1zsh_help_packages ;;
-  help | status | doctor | platform | update | migrate | backup | restore | reset-phase | attach | theme | workspace | wiki)
+  help | status | doctor | platform | update | migrate | backup | restore | reset-phase | attach | theme | workspace | codex | wiki)
     printf 'Run j3w1zsh help for the complete command summary.\n'
     ;;
   *) j3w1zsh_usage_error "Unknown help topic: $topic" ;;

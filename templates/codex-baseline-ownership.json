@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "keys": [
+    {
+      "path": "mcp_servers.openaiDeveloperDocs.url",
+      "ownership": "managed-portable",
+      "historical_values": ["https://developers.openai.com/mcp"]
+    },
+    { "path": "approval_policy", "ownership": "initial-default" },
+    { "path": "sandbox_mode", "ownership": "initial-default" },
+    {
+      "path": "sandbox_workspace_write.network_access",
+      "ownership": "initial-default"
+    }
+  ]
+}
