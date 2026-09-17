@@ -134,9 +134,9 @@ label set, so a CE label added by hand and absent from that rule is drift, and t
 removes it.
 
 **Project membership** is written by the owner-authenticated Project bridge, over a reviewed
-enumerated set of objects. The native *Item added to project* workflow is retired, so there is
-exactly one writer. **Project Status** is *not* the reconciler's: GitHub's own native Project
-workflows own it, and building a competing writer is ruled out rather than pending. The full
+enumerated set of objects. The native *Item added to project* workflow is retired, so exactly one
+component writes it. **Project Status** is *not* the reconciler's: GitHub's own native Project
+workflows own it, and building a competing one is ruled out rather than pending. The full
 per-surface answer is
 [`policy/surface-dispositions.yaml`](https://github.com/j3w1/ce-metadata-reconciler/blob/main/policy/surface-dispositions.yaml).
 
@@ -165,10 +165,10 @@ grants source, task, review, merge, release, deployment, or production authority
 Preserve the provider-view hold for `j3w1zsh#22`; never toggle otherwise-correct metadata to force view membership.
 
 **This repository's own profile is reviewed policy, not a claim made here.** Its role is
-`personal-tooling-adjacent`, its membership writer is `OWNER_AUTHENTICATED_BRIDGE`, and the label prefixes above are
+`personal-tooling-adjacent`, its membership authority is `OWNER_AUTHENTICATED_BRIDGE`, and the label prefixes above are
 what protected policy currently allows it. Read them from
 [`policy/repositories.yaml`](https://github.com/j3w1/ce-metadata-reconciler/blob/main/policy/repositories.yaml)
-rather than from this file, and verify the current surface grant and proven writer before any
+rather than from this file, and verify the current surface grant and its proven writing authority before any
 operation - a grant names exact repositories and, at a canary ring, exact objects, so being in
 the allowlist is not the same as being covered by a live grant.
 
@@ -177,3 +177,10 @@ Report `HOLD`, `CONFLICT`, `NEEDS_REVIEW`, or policy/installation drift to
 operational dashboard. Earlier versions of this contract pointed at `#2`, which is now closed.
 Canonical manual: [casaelida.com/docs/operations/metadata-reconciler](https://github.com/j3w1/casaelida.com/tree/main/docs/operations/metadata-reconciler).
 Machine policy: [`ce-metadata-reconciler/policy`](https://github.com/j3w1/ce-metadata-reconciler/tree/main/policy).
+
+*A note on vocabulary in this file:* this repository's contract test forbids its former project
+identity, and the bare word that names it, outside an exact migration allowlist. The metadata
+reconciler's own documentation uses that word constantly for the component that performs a write.
+Here it is written around - "membership authority", "the component that writes" - which is this
+repository's stricter local rule being preserved rather than an imprecision. The concept is
+identical to the one the canonical snippet names.
