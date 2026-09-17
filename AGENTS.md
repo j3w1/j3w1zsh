@@ -140,10 +140,22 @@ workflows own it, and building a competing writer is ruled out rather than pendi
 per-surface answer is
 [`policy/surface-dispositions.yaml`](https://github.com/j3w1/ce-metadata-reconciler/blob/main/policy/surface-dispositions.yaml).
 
-**You do not need to run the classifier.** Every sweep classifies uncovered objects automatically.
-Classification is evidence and never authority: a new issue or pull request sits at
-`NEEDS_REVIEW`, writing nothing, until protected policy covers it - a reviewed rule, an override,
-or a recorded governance exclusion. See
+**You do not need to run the classifier, and it is no longer only evidence.** Every sweep
+classifies uncovered objects automatically, and since [ADR 0038](https://github.com/j3w1/ce-metadata-reconciler/blob/main/docs/adr/0038-reviewed-classification-rules-as-label-authority.md)
+a complete, canonical, unambiguous classification derived from reviewed rules *is* label
+authority in all six managed repositories: it becomes the object's exact managed label set where
+no explicit reviewed rule already covers it. An earlier version of this section said
+classification is evidence and never authority. That was true when it was written and is false
+now, which is the single most important correction here.
+
+What has not changed is the half that fails closed. An object whose evidence is incomplete or
+conflicting, or that does not decide a single `type:` and a single `area:`, sits at
+`NEEDS_REVIEW` writing nothing until somebody reviews it - and since
+[ADR 0039](https://github.com/j3w1/ce-metadata-reconciler/blob/main/docs/adr/0039-semantic-pr-evidence.md)
+a pull request is classified from the files it changed rather than the shape of its title, with
+structure outranking wording and a `CE-####` prefix implying neither a type nor an area. A
+reviewed answer becomes a reusable rule rather than a one-off, so the next object of that shape
+is decided too. See
 [How an Object Becomes Governed](https://github.com/j3w1/ce-metadata-reconciler/blob/main/docs/operator-handbook/How-an-Object-Becomes-Governed.md).
 
 The reconciler owns only metadata surfaces explicitly activated by protected policy and rollout
@@ -152,7 +164,16 @@ grants source, task, review, merge, release, deployment, or production authority
 
 Preserve the provider-view hold for `j3w1zsh#22`; never toggle otherwise-correct metadata to force view membership.
 
+**This repository's own profile is reviewed policy, not a claim made here.** Its role is
+`personal-tooling-adjacent`, its membership writer is `OWNER_AUTHENTICATED_BRIDGE`, and the label prefixes above are
+what protected policy currently allows it. Read them from
+[`policy/repositories.yaml`](https://github.com/j3w1/ce-metadata-reconciler/blob/main/policy/repositories.yaml)
+rather than from this file, and verify the current surface grant and proven writer before any
+operation - a grant names exact repositories and, at a canary ring, exact objects, so being in
+the allowlist is not the same as being covered by a live grant.
+
 Report `HOLD`, `CONFLICT`, `NEEDS_REVIEW`, or policy/installation drift to
-[`ce-metadata-reconciler#2`](https://github.com/j3w1/ce-metadata-reconciler/issues/2). Canonical
-manual: [casaelida.com/docs/operations/metadata-reconciler](https://github.com/j3w1/casaelida.com/tree/main/docs/operations/metadata-reconciler).
+[`ce-metadata-reconciler#7`](https://github.com/j3w1/ce-metadata-reconciler/issues/7), the
+operational dashboard. Earlier versions of this contract pointed at `#2`, which is now closed.
+Canonical manual: [casaelida.com/docs/operations/metadata-reconciler](https://github.com/j3w1/casaelida.com/tree/main/docs/operations/metadata-reconciler).
 Machine policy: [`ce-metadata-reconciler/policy`](https://github.com/j3w1/ce-metadata-reconciler/tree/main/policy).
