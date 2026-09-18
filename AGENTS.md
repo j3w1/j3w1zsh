@@ -148,15 +148,27 @@ no explicit reviewed rule already covers it. An earlier version of this section 
 classification is evidence and never authority. That was true when it was written and is false
 now, which is the single most important correction here.
 
-What has not changed is the half that fails closed. An object whose evidence is incomplete or
-conflicting, or that does not decide a single `type:` and a single `area:`, sits at
-`NEEDS_REVIEW` writing nothing until somebody reviews it - and since
-[ADR 0039](https://github.com/j3w1/ce-metadata-reconciler/blob/main/docs/adr/0039-semantic-pr-evidence.md)
-a pull request is classified from the files it changed rather than the shape of its title, with
-structure outranking wording and a `CE-####` prefix implying neither a type nor an area. A
-reviewed answer becomes a reusable rule rather than a one-off, so the next object of that shape
-is decided too. See
+What has not changed is the half that fails closed. An object whose evidence does not decide a
+single `type:` and a single `area:` sits at `NEEDS_REVIEW` writing nothing until somebody reviews
+it. An incomplete changed-file list is a narrower case than it sounds: it fails a *universal* fact
+closed - "every path here is documentation" cannot be established from a truncated list - but an
+*existential* one can still hold, so a truncated list does not by itself withhold.
+
+Since [ADR 0039](https://github.com/j3w1/ce-metadata-reconciler/blob/main/docs/adr/0039-semantic-pr-evidence.md)
+a pull request is classified from the files it changed **as well as** its title, and those are two
+evidence classes with a precedence between them rather than one replacing the other: where they
+disagree in an exclusive namespace structure wins and the title rule's whole contribution is set
+aside, and where they agree they merge - so a title rule can still supply an `area:` that structure
+is silent about, which is how the cooperation-contract pull requests took `area:metadata`. Within a
+class there is no principled winner, so two conflicting title rules and two conflicting structural
+rules both fail closed. A `CE-####` prefix implies neither a type nor an area. A reviewed answer
+becomes a reusable rule rather than a one-off, so the next object of that shape is decided too. See
 [How an Object Becomes Governed](https://github.com/j3w1/ce-metadata-reconciler/blob/main/docs/operator-handbook/How-an-Object-Becomes-Governed.md).
+
+An earlier version of this section said a pull request is classified from its changed files
+*rather than* its title, and that incomplete evidence withholds. Independent review of
+`casaelida.com#118` found both overstated, against ADR 0039 and against
+`test_existential_structure_still_decides_on_a_truncated_list`. The wording above is the correction.
 
 The reconciler owns only metadata surfaces explicitly activated by protected policy and rollout
 authority. Do not create competing label, dashboard, or Project automation. Its output never
