@@ -122,9 +122,9 @@ unavailable, deferred, blocked, or failed. Green CI is evidence, not authorizati
 Keep coherent commits; do not rewrite unrelated work or published history. Do not publish a tag
 or release until the release contract's exact WSL and Termux device gates pass.
 
-## CE Metadata Reconciler integration
+## CE Metadata integration
 
-This repository is managed by the CE Metadata Reconciler. Nothing is installed here: the GitHub
+This repository is managed by the CE Metadata. Nothing is installed here: the GitHub
 App already reads this repository, and this section is the cooperation contract an agent working
 in it needs to know.
 
@@ -138,10 +138,10 @@ enumerated set of objects. The native *Item added to project* workflow is retire
 component writes it. **Project Status** is *not* the reconciler's: GitHub's own native Project
 workflows own it, and building a competing one is ruled out rather than pending. The full
 per-surface answer is
-[`policy/surface-dispositions.yaml`](https://github.com/j3w1/ce-metadata-reconciler/blob/main/policy/surface-dispositions.yaml).
+[`policy/surface-dispositions.yaml`](https://github.com/j3w1/ce-metadata/blob/main/policy/surface-dispositions.yaml).
 
 **You do not need to run the classifier, and it is no longer only evidence.** Every sweep
-classifies uncovered objects automatically, and since [ADR 0038](https://github.com/j3w1/ce-metadata-reconciler/blob/main/docs/adr/0038-reviewed-classification-rules-as-label-authority.md)
+classifies uncovered objects automatically, and since [ADR 0038](https://github.com/j3w1/ce-metadata/blob/main/docs/adr/0038-reviewed-classification-rules-as-label-authority.md)
 a complete, canonical, unambiguous classification derived from reviewed rules *is* label
 authority in all six managed repositories: it becomes the object's exact managed label set where
 no explicit reviewed rule already covers it. An earlier version of this section said
@@ -154,7 +154,7 @@ it. An incomplete changed-file list is a narrower case than it sounds: it fails 
 closed - "every path here is documentation" cannot be established from a truncated list - but an
 *existential* one can still hold, so a truncated list does not by itself withhold.
 
-Since [ADR 0039](https://github.com/j3w1/ce-metadata-reconciler/blob/main/docs/adr/0039-semantic-pr-evidence.md)
+Since [ADR 0039](https://github.com/j3w1/ce-metadata/blob/main/docs/adr/0039-semantic-pr-evidence.md)
 a pull request is classified from the files it changed **as well as** its title, and those are two
 evidence classes with a precedence between them rather than one replacing the other: where they
 disagree in an exclusive namespace structure wins and the title rule's whole contribution is set
@@ -163,7 +163,7 @@ is silent about, which is how the cooperation-contract pull requests took `area:
 class there is no principled winner, so two conflicting title rules and two conflicting structural
 rules both fail closed. A `CE-####` prefix implies neither a type nor an area. A reviewed answer
 becomes a reusable rule rather than a one-off, so the next object of that shape is decided too. See
-[How an Object Becomes Governed](https://github.com/j3w1/ce-metadata-reconciler/blob/main/docs/operator-handbook/How-an-Object-Becomes-Governed.md).
+[How an Object Becomes Governed](https://github.com/j3w1/ce-metadata/blob/main/docs/operator-handbook/How-an-Object-Becomes-Governed.md).
 
 An earlier version of this section said a pull request is classified from its changed files
 *rather than* its title, and that incomplete evidence withholds. Independent review of
@@ -179,16 +179,16 @@ Preserve the provider-view hold for `j3w1zsh#22`; never toggle otherwise-correct
 **This repository's own profile is reviewed policy, not a claim made here.** Its role is
 `personal-tooling-adjacent`, its membership authority is `OWNER_AUTHENTICATED_BRIDGE`, and the label prefixes above are
 what protected policy currently allows it. Read them from
-[`policy/repositories.yaml`](https://github.com/j3w1/ce-metadata-reconciler/blob/main/policy/repositories.yaml)
+[`policy/repositories.yaml`](https://github.com/j3w1/ce-metadata/blob/main/policy/repositories.yaml)
 rather than from this file, and verify the current surface grant and its proven writing authority before any
 operation - a grant names exact repositories and, at a canary ring, exact objects, so being in
 the allowlist is not the same as being covered by a live grant.
 
 Report `HOLD`, `CONFLICT`, `NEEDS_REVIEW`, or policy/installation drift to
-[`ce-metadata-reconciler#7`](https://github.com/j3w1/ce-metadata-reconciler/issues/7), the
+[`ce-metadata#7`](https://github.com/j3w1/ce-metadata/issues/7), the
 operational dashboard. Earlier versions of this contract pointed at `#2`, which is now closed.
 Canonical manual: [casaelida.com/docs/operations/metadata-reconciler](https://github.com/j3w1/casaelida.com/tree/main/docs/operations/metadata-reconciler).
-Machine policy: [`ce-metadata-reconciler/policy`](https://github.com/j3w1/ce-metadata-reconciler/tree/main/policy).
+Machine policy: [`ce-metadata/policy`](https://github.com/j3w1/ce-metadata/tree/main/policy).
 
 *A note on vocabulary in this file:* this repository's contract test forbids its former project
 identity, and the bare word that names it, outside an exact migration allowlist. The metadata
